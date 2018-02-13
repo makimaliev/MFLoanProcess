@@ -1,9 +1,9 @@
 package kg.gov.mf.loan.process.model;
 
-import kg.gov.mf.loan.manage.model.GenericModel;
+import org.springframework.format.annotation.DateTimeFormat;
 
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import javax.persistence.*;
+import java.util.Date;
 
 @Entity
 @Table(name="job")
@@ -12,6 +12,11 @@ public class Job extends GenericModel{
     private String name;
     private String cronExpression;
     private boolean enabled;
+
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    @Temporal(TemporalType.DATE)
+    @Column(nullable=false)
+    private Date onDate;
 
     public String getName() {
         return name;
@@ -31,4 +36,6 @@ public class Job extends GenericModel{
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
+    public Date getOnDate() { return onDate; }
+    public void setOnDate(Date onDate) { this.onDate = onDate; }
 }
