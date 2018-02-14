@@ -1,5 +1,6 @@
 package kg.gov.mf.loan.process.model;
 
+import kg.gov.mf.loan.manage.model.GenericModel;
 import kg.gov.mf.loan.manage.model.loan.Loan;
 import org.springframework.format.annotation.DateTimeFormat;
 

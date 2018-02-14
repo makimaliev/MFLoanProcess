@@ -1,5 +1,6 @@
 package kg.gov.mf.loan.process.dao;
 
+import kg.gov.mf.loan.manage.dao.GenericDaoImpl;
 import kg.gov.mf.loan.process.model.LoanDetailedSummary;
 import org.springframework.stereotype.Repository;
 
