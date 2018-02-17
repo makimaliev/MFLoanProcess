@@ -1,8 +1,12 @@
 package kg.gov.mf.loan.process.job;
 
 import kg.gov.mf.loan.manage.model.loan.Loan;
+import kg.gov.mf.loan.manage.model.loan.Payment;
 import kg.gov.mf.loan.manage.model.loan.PaymentSchedule;
 import kg.gov.mf.loan.manage.service.loan.LoanService;
+import kg.gov.mf.loan.manage.service.loan.PaymentScheduleService;
+import kg.gov.mf.loan.manage.service.loan.PaymentService;
+import kg.gov.mf.loan.manage.util.DateUtils;
 import kg.gov.mf.loan.process.model.LoanDetailedSummary;
 import kg.gov.mf.loan.process.service.LoanDetailedSummaryService;
 import org.quartz.*;
@@ -13,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 @Transactional
 @Component
@@ -21,6 +24,12 @@ public class CalculateLoanDetailedSummaryJob implements Job {
 
     @Autowired
     LoanService loanService;
+
+    @Autowired
+    PaymentScheduleService scheduleService;
+
+    @Autowired
+    PaymentService paymentService;
 
     @Autowired
     LoanDetailedSummaryService loanDetailedSummaryService;
@@ -49,61 +58,121 @@ public class CalculateLoanDetailedSummaryJob implements Job {
             summary.setLoan(loan);
             summary.setOnDate(onDate);
 
-            //TODO: Method for returning last row
-            /*
-            summary.setDaysInPeriod(getDifferenceDays(onDate, schedule.getExpectedDate()));
-            summary.setPrincipalPayment(0.0);
-            summary.setInterestPayment(0.0);
-            */
-            //TODO: Method for returning all rows until some date
+            //Principal
+            Double totalPrincipalPayment = 0.0;
+            Double principalPaid = 0.0;
+            Double totalPrincipalPaid = 0.0;
+            Double principalOutstanding = 0.0; //totalDisbursement - totalPrincipalPaid-totalWriteOffPaid
+            Double principalWriteOff = 0.0;
+            Double totalPrincipalWriteOff = 0.0;
 
-            //get payment schedule rows
-            Set<PaymentSchedule> paymentScheduleSet = loan.getPaymentSchedules();
-            for (PaymentSchedule schedule: paymentScheduleSet) {
+            //Interest
+            Double totalDisbursement = 0.0;
+            Double collectedInterestDisbursed = 0.0; //sum of all collected interest (ignore dates)
+            Double interestPaid = 0.0;
+            Double totalCollectedInterestPayment = 0.0;
+            Double totalInterestPaid = 0.0;
+            Double totalInterestPayment = 0.0;
 
-                //calculate for earlier dates
-                if(schedule.getExpectedDate().before(onDate))
+            Double interestOutstanding = 0.0;
+            Double interestAccrued = 0.0; //principalOutstanding,creditTerm,from-to date.
+            Double interestOverdue = 0.0;
+            Double totalInterestAccrued = 0.0;
+
+            //Penalty
+            Double totalCollectedPenaltyPayment = 0.0;
+            Double collectedPenaltyDisbursed = 0.0; //sum of all collected penalty (ignore dates)
+            Double penaltyAccrued = 0.0;
+            Double penaltyOutstanding = 0.0;
+            Double penaltyOverdue = 0.0;
+            Double penaltyPaid = 0.0;
+            Double totalPenaltyAccrued = 0.0;
+            Double totalPenaltyPaid = 0.0;
+
+            Double principalOverdue = 0.0;
+            int daysInPeriod = 0;
+
+            List<PaymentSchedule> row = scheduleService.getRowsUntilOnDate(onDate);
+            if(row != null)
+            {
+                Date lastOpDate = row.get(0).getExpectedDate();
+                Set<PaymentSchedule> all = loan.getPaymentSchedules();
+                for (PaymentSchedule schedule: all)
                 {
-
+                    collectedInterestDisbursed += schedule.getCollectedInterestPayment();
+                    collectedPenaltyDisbursed += schedule.getCollectedPenaltyPayment();
                 }
+
+                for (int i=0; i < row.size(); i++)
+                {
+                    totalDisbursement += row.get(i).getDisbursement();
+                    totalCollectedInterestPayment += row.get(i).getCollectedInterestPayment();
+                    totalCollectedPenaltyPayment += row.get(i).getCollectedPenaltyPayment();
+                    totalPrincipalPayment += row.get(i).getPrincipalPayment();
+
+                    if(i == row.size()-1)
+                    {
+                        summary.setPrincipalPayment(row.get(i).getPrincipalPayment());
+                        summary.setInterestPayment(row.get(i).getInterestPayment());
+                        summary.setCollectedInterestPayment(row.get(i).getCollectedInterestPayment());
+                        summary.setCollectedPenaltyPayment(row.get(i).getCollectedPenaltyPayment());
+                        summary.setDisbursement(row.get(i).getDisbursement());
+                        lastOpDate = row.get(i).getExpectedDate();
+                        if(i > 0)
+                        {
+                            if(lastOpDate.compareTo(DateUtils.subtract(onDate, DateUtils.DAY,1)) == 0)
+                                lastOpDate = row.get(i-1).getExpectedDate();
+                        }
+                    }
+                }
+
+                List<Payment> payments = paymentService.getRowsUntilOnDate(onDate);
+                for (Payment payment: payments)
+                {
+                    totalPrincipalPaid += payment.getPrincipal();
+                    totalInterestPaid += payment.getInterest();
+                }
+
+                Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDate(onDate);
+                if(paymentDayBeforeOnDate != null)
+                {
+                    principalPaid = paymentDayBeforeOnDate.getPrincipal();
+                    interestPaid = paymentDayBeforeOnDate.getInterest();
+                }
+
+                daysInPeriod = DateUtils.getDifferenceDays(DateUtils.subtract(onDate, DateUtils.DAY,1), lastOpDate);
+                summary.setDaysInPeriod(daysInPeriod);
+                summary.setTotalDisbursement(totalDisbursement);
+                summary.setTotalCollectedInterestPayment(totalCollectedInterestPayment);
+                summary.setTotalCollectedPenaltyPayment(totalCollectedPenaltyPayment);
+                summary.setCollectedInterestDisbursed(collectedInterestDisbursed);
+                summary.setCollectedPenaltyDisbursed(collectedPenaltyDisbursed);
+                summary.setTotalPrincipalPaid(totalPrincipalPaid);
+                summary.setTotalPrincipalPayment(totalPrincipalPayment);
+                summary.setPrincipalPaid(principalPaid);
+                summary.setInterestPaid(interestPaid);
+                summary.setTotalInterestPaid(totalInterestPaid);
+                principalOutstanding = totalDisbursement - totalPrincipalPaid;
+                summary.setPrincipalOutstanding(principalOutstanding);
+                //---------------------------------------------------
+
+                summary.setInterestAccrued(interestAccrued);
+                summary.setTotalInterestPayment(totalInterestPayment);
+                summary.setInterestOutstanding(interestOutstanding);
+                summary.setInterestOverdue(interestOverdue);
+                summary.setPenaltyAccrued(penaltyAccrued);
+                summary.setPenaltyOutstanding(penaltyOutstanding);
+                summary.setPenaltyOverdue(penaltyOverdue);
+                summary.setPenaltyPaid(penaltyPaid);
+                summary.setTotalInterestAccrued(totalInterestAccrued);
+                summary.setTotalPenaltyAccrued(totalPenaltyAccrued);
+                summary.setTotalPenaltyPaid(totalPenaltyPaid);
+                summary.setPrincipalWriteOff(principalWriteOff);
+                summary.setTotalPrincipalWriteOff(totalPrincipalWriteOff);
+                summary.setPrincipalOverdue(principalOverdue);
             }
 
-            /*
-            summary.setCollectedInterestPayment(schedule.getCollectedInterestPayment());
-            summary.setCollectedInterestDisbursed(0.0); //sum of all collected interest (ignore dates)
-            summary.setCollectedPenaltyPayment(schedule.getCollectedPenaltyPayment());
-            summary.setCollectedPenaltyDisbursed(0.0); //sum of all collected penalty (ignore dates)
-            summary.setInterestAccrued(0.0);
-            summary.setInterestOutstanding(0.0);
-            summary.setInterestOverdue(0.0);
-            summary.setInterestPaid(0.0);
-            summary.setPenaltyAccrued(0.0);
-            summary.setPenaltyOutstanding(0.0);
-            summary.setPenaltyOverdue(0.0);
-            summary.setPenaltyPaid(0.0);
-            summary.setTotalCollectedInterestPayment(0.0);
-            summary.setTotalCollectedPenaltyPayment(0.0);
-            summary.setTotalInterestAccrued(0.0);
-            summary.setTotalInterestPaid(0.0);
-            summary.setTotalInterestPayment(0.0);
-            summary.setTotalPenaltyAccrued(0.0);
-            summary.setTotalPenaltyPaid(0.0);
-            summary.setDisbursement(schedule.getDisbursement());
-            summary.setTotalDisbursement(schedule.getDisbursement());
-            summary.setTotalPrincipalPayment(0.0);
-            summary.setPrincipalWriteOff(0.0);
-            summary.setTotalPrincipalWriteOff(0.0);
-            summary.setPrincipalPaid(0.0);
-            summary.setTotalPrincipalPaid(0.0);
-            summary.setPrincipalOutstanding(0.0);
-            summary.setPrincipalOverdue(0.0);
             loanDetailedSummaryService.add(summary);
-            */
         }
-    }
-
-    public static int getDifferenceDays(Date d1, Date d2) {
-        long diff = Math.abs(d2.getTime() - d1.getTime());
-        return (int)TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
     }
 }
