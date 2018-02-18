@@ -1,8 +1,10 @@
 package kg.gov.mf.loan.process.job;
 
+import kg.gov.mf.loan.manage.model.loan.CreditTerm;
 import kg.gov.mf.loan.manage.model.loan.Loan;
 import kg.gov.mf.loan.manage.model.loan.Payment;
 import kg.gov.mf.loan.manage.model.loan.PaymentSchedule;
+import kg.gov.mf.loan.manage.service.loan.CreditTermService;
 import kg.gov.mf.loan.manage.service.loan.LoanService;
 import kg.gov.mf.loan.manage.service.loan.PaymentScheduleService;
 import kg.gov.mf.loan.manage.service.loan.PaymentService;
@@ -32,6 +34,9 @@ public class CalculateLoanDetailedSummaryJob implements Job {
     PaymentService paymentService;
 
     @Autowired
+    CreditTermService termService;
+
+    @Autowired
     LoanDetailedSummaryService loanDetailedSummaryService;
 
     @Override
@@ -53,6 +58,8 @@ public class CalculateLoanDetailedSummaryJob implements Job {
 
             if(loanDetailedSummaryService.getByOnDateAndLoanId(onDate, loan.getId())!=null)
                 continue;
+
+            CreditTerm term = termService.getRecentTermByLoanId(loan.getId());
 
             LoanDetailedSummary summary = new LoanDetailedSummary();
             summary.setLoan(loan);
@@ -154,9 +161,9 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                 summary.setTotalInterestPaid(totalInterestPaid);
                 principalOutstanding = totalDisbursement - totalPrincipalPaid;
                 summary.setPrincipalOutstanding(principalOutstanding);
-                //---------------------------------------------------
-
+                interestAccrued = calculateInterestAccrued(principalOutstanding, term, daysInPeriod);
                 summary.setInterestAccrued(interestAccrued);
+                //---------------------------------------------------
                 summary.setTotalInterestPayment(totalInterestPayment);
                 summary.setInterestOutstanding(interestOutstanding);
                 summary.setInterestOverdue(interestOverdue);
@@ -174,5 +181,11 @@ public class CalculateLoanDetailedSummaryJob implements Job {
 
             loanDetailedSummaryService.add(summary);
         }
+    }
+
+    public Double calculateInterestAccrued(Double principalOutstanding, CreditTerm term, int daysInperiod)
+    {
+        Double interestRateValue = term.getInterestRateValue();
+        return (principalOutstanding*interestRateValue/365)/100*daysInperiod;
     }
 }
