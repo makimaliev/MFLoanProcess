@@ -55,6 +55,9 @@ public class LoanDetailedSummary extends GenericModel{
     private Double totalInterestAccrued;
 
     @Column(precision = 12, scale = 5)
+    private Double totalInterestAccruedOnInterestPayment;
+
+    @Column(precision = 12, scale = 5)
     private Double interestPayment;
 
     @Column(precision = 12, scale = 5)
@@ -366,6 +369,14 @@ public class LoanDetailedSummary extends GenericModel{
 
     public void setPenaltyOverdue(Double penaltyOverdue) {
         this.penaltyOverdue = penaltyOverdue;
+    }
+
+    public Double getTotalInterestAccruedOnInterestPayment() {
+        return totalInterestAccruedOnInterestPayment;
+    }
+
+    public void setTotalInterestAccruedOnInterestPayment(Double totalInterestAccruedOnInterestPayment) {
+        this.totalInterestAccruedOnInterestPayment = totalInterestAccruedOnInterestPayment;
     }
 
     public Loan getLoan() {

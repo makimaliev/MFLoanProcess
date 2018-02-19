@@ -4,9 +4,12 @@ import kg.gov.mf.loan.manage.dao.GenericDao;
 import kg.gov.mf.loan.process.model.LoanDetailedSummary;
 
 import java.util.Date;
+import java.util.List;
 
 public interface LoanDetailedSummaryDao extends GenericDao<LoanDetailedSummary> {
 
     LoanDetailedSummary getByOnDateAndLoanId(Date onDate, long loanId);
+    LoanDetailedSummary getLastSummaryByLoanId(long loanId);
+    List<LoanDetailedSummary> getRowsUntilOnDate(Date onDate, long loanId);
 
 }
