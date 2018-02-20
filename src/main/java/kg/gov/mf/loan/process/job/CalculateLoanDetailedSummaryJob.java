@@ -41,21 +41,17 @@ public class CalculateLoanDetailedSummaryJob implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
+        Date onDate = getOnDateFromJobCaller(context);
+        if(onDate == null) throw new NullPointerException(); //Write Custom Exception
+        fillLoanDetailSummaryForDate(onDate);
+    }
 
-        Date onDate = new Date(0);
-
-        try {
-            SchedulerContext schedulerContext = context.getScheduler().getContext();
-            onDate = (Date) schedulerContext.get("onDate");
-        } catch (SchedulerException e) {
-            e.printStackTrace();
-        }
-
+    private void fillLoanDetailSummaryForDate(Date onDate)
+    {
         //get loans
         List<Loan> loans = loanService.list();
-        for (Loan loan: loans
-             ) {
-
+        for (Loan loan: loans)
+        {
             if(loanDetailedSummaryService.getByOnDateAndLoanId(onDate, loan.getId())!=null)
                 continue;
 
@@ -188,22 +184,45 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                 summary.setInterestOverdue(totalInterestPayment - totalInterestPaid);
                 //---------------------------------------------------
 
-                summary.setPenaltyAccrued(penaltyAccrued);
-                summary.setPenaltyOutstanding(penaltyOutstanding);
+                summary.setPrincipalOverdue(principalOverdue);
                 summary.setPenaltyOverdue(penaltyOverdue);
-                summary.setPenaltyPaid(penaltyPaid);
+
+                summary.setPenaltyAccrued(penaltyAccrued);
                 summary.setTotalPenaltyAccrued(totalPenaltyAccrued);
+
+                summary.setPenaltyOutstanding(penaltyOutstanding);
+
+                summary.setPenaltyPaid(penaltyPaid);
                 summary.setTotalPenaltyPaid(totalPenaltyPaid);
+
                 summary.setPrincipalWriteOff(principalWriteOff);
                 summary.setTotalPrincipalWriteOff(totalPrincipalWriteOff);
-                summary.setPrincipalOverdue(principalOverdue);
+
             }
 
             loanDetailedSummaryService.add(summary);
         }
     }
 
-    public Double calculateInterestAccrued(Double principalOutstanding, CreditTerm term, int daysInperiod)
+    private Date getOnDateFromJobCaller(JobExecutionContext context)
+    {
+        Date onDate = null;
+
+        try
+        {
+            SchedulerContext schedulerContext = context.getScheduler().getContext();
+            onDate = (Date) schedulerContext.get("onDate");
+
+        }
+        catch(SchedulerException ex)
+        {
+            ex.printStackTrace();
+        }
+
+        return onDate;
+    }
+
+    private Double calculateInterestAccrued(Double principalOutstanding, CreditTerm term, int daysInperiod)
     {
         Double interestRateValue = term.getInterestRateValue();
         return (principalOutstanding*interestRateValue/360)/100*daysInperiod;
