@@ -131,6 +131,7 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                 {
                     totalPrincipalPaid += payment.getPrincipal();
                     totalInterestPaid += payment.getInterest();
+                    totalPenaltyPaid += payment.getPenalty();
                 }
 
                 Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDate(onDate);
@@ -138,6 +139,7 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                 {
                     principalPaid = paymentDayBeforeOnDate.getPrincipal();
                     interestPaid = paymentDayBeforeOnDate.getInterest();
+                    penaltyPaid = paymentDayBeforeOnDate.getPenalty();
                 }
 
                 summary.setDaysInPeriod(daysInPeriod);
@@ -150,8 +152,12 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                 summary.setTotalPrincipalPayment(totalPrincipalPayment);
                 summary.setPrincipalPaid(principalPaid);
                 summary.setInterestPaid(interestPaid);
+                summary.setPenaltyPaid(penaltyPaid);
                 summary.setTotalInterestPaid(totalInterestPaid);
+                summary.setTotalPenaltyPaid(totalPenaltyPaid);
                 principalOutstanding = totalDisbursement - totalPrincipalPaid;
+                principalOverdue = totalPrincipalPayment - totalPrincipalPaid - totalPrincipalWriteOff;
+                summary.setPrincipalOverdue(principalOverdue);
                 summary.setPrincipalOutstanding(principalOutstanding);
                 if(lastSummary != null)
                 {
@@ -166,6 +172,9 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                     }
 
                     totalInterestPayment += interestPayment + lastSummary.getTotalInterestPayment();
+
+                    penaltyAccrued = calculatePenaltyAccrued(lastSummary.getPrincipalOverdue(), totalInterestPayment - totalInterestPaid, term, daysInPeriod);
+                    totalPenaltyAccrued += penaltyAccrued + lastSummary.getTotalPenaltyAccrued();
                 }
 
                 else
@@ -173,6 +182,9 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                     interestAccrued = calculateInterestAccrued(principalOutstanding, term, daysInPeriod);
                     totalInterestAccrued = interestAccrued;
                     totalInterestAccruedOnInterestPayment = interestPayment;
+
+                    penaltyAccrued = calculatePenaltyAccrued(principalOverdue, 0.0,term, daysInPeriod);
+                    totalPenaltyAccrued = penaltyAccrued;
                 }
 
                 summary.setInterestAccrued(interestAccrued);
@@ -180,26 +192,20 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                 summary.setTotalInterestAccruedOnInterestPayment(totalInterestAccruedOnInterestPayment);
                 summary.setInterestPayment(interestPayment);
                 summary.setTotalInterestPayment(totalInterestPayment);
-                summary.setInterestOutstanding(totalInterestAccrued + collectedInterestDisbursed - totalInterestPaid);
-                summary.setInterestOverdue(totalInterestPayment - totalInterestPaid);
-                //---------------------------------------------------
-
-                summary.setPrincipalOverdue(principalOverdue);
-                summary.setPenaltyOverdue(penaltyOverdue);
-
+                interestOutstanding = totalInterestAccrued + collectedInterestDisbursed - totalInterestPaid;
+                summary.setInterestOutstanding(interestOutstanding);
+                interestOverdue = totalInterestPayment - totalInterestPaid;
+                summary.setInterestOverdue(interestOverdue);
                 summary.setPenaltyAccrued(penaltyAccrued);
                 summary.setTotalPenaltyAccrued(totalPenaltyAccrued);
-
+                penaltyOverdue = totalPenaltyAccrued + totalCollectedPenaltyPayment - penaltyPaid;
+                summary.setPenaltyOverdue(penaltyOverdue);
+                penaltyOutstanding = totalPenaltyAccrued + collectedPenaltyDisbursed - penaltyPaid;
                 summary.setPenaltyOutstanding(penaltyOutstanding);
-
-                summary.setPenaltyPaid(penaltyPaid);
-                summary.setTotalPenaltyPaid(totalPenaltyPaid);
-
+                //---------------------------------------------------
                 summary.setPrincipalWriteOff(principalWriteOff);
                 summary.setTotalPrincipalWriteOff(totalPrincipalWriteOff);
-
             }
-
             loanDetailedSummaryService.add(summary);
         }
     }
@@ -226,5 +232,12 @@ public class CalculateLoanDetailedSummaryJob implements Job {
     {
         Double interestRateValue = term.getInterestRateValue();
         return (principalOutstanding*interestRateValue/360)/100*daysInperiod;
+    }
+
+    private Double calculatePenaltyAccrued(Double principalOverdue, Double interestOverdue, CreditTerm term, int daysInperiod)
+    {
+        Double penaltyOnPrincipalOverdueRate = term.getPenaltyOnPrincipleOverdueRateValue();
+        Double penaltyOnInterestOverdueRate = term.getPenaltyOnInterestOverdueRateValue();
+        return (principalOverdue*penaltyOnPrincipalOverdueRate/100*daysInperiod/360) + (interestOverdue*penaltyOnInterestOverdueRate/100*daysInperiod/360);
     }
 }
