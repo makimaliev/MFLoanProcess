@@ -10,6 +10,5 @@ public interface LoanDetailedSummaryDao extends GenericDao<LoanDetailedSummary> 
 
     LoanDetailedSummary getByOnDateAndLoanId(Date onDate, long loanId);
     LoanDetailedSummary getLastSummaryByLoanId(long loanId);
-    List<LoanDetailedSummary> getRowsUntilOnDate(Date onDate, long loanId);
 
 }

@@ -23,11 +23,4 @@ public class LoanDetailedSummaryDaoImpl extends GenericDaoImpl<LoanDetailedSumma
         query.setMaxResults(1);
         return (LoanDetailedSummary) query.uniqueResult();
     }
-
-    @Override
-    public List<LoanDetailedSummary> getRowsUntilOnDate(Date onDate, long loanId)
-    {
-        return getCurrentSession().createQuery("from LoanDetailedSummary where onDate < '" + onDate + "' order by onDate").list();
-    }
-
 }
