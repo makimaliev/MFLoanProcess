@@ -1,11 +1,11 @@
 package kg.gov.mf.loan.process.service;
 
 import kg.gov.mf.loan.manage.service.GenericServiceImpl;
-import kg.gov.mf.loan.process.model.Job;
+import kg.gov.mf.loan.process.model.OnDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Service("jobService")
+@Service("onDateService")
 @Transactional
-public class JobServiceImpl extends GenericServiceImpl<Job> implements JobService {
+public class OnDateServiceImpl extends GenericServiceImpl<OnDate> implements OnDateService {
 }

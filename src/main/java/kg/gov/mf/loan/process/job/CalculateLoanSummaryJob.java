@@ -5,8 +5,10 @@ import kg.gov.mf.loan.manage.model.loan.Loan;
 import kg.gov.mf.loan.manage.service.loan.CreditTermService;
 import kg.gov.mf.loan.manage.service.loan.LoanService;
 import kg.gov.mf.loan.manage.util.DateUtils;
+import kg.gov.mf.loan.process.model.JobItem;
 import kg.gov.mf.loan.process.model.LoanDetailedSummary;
 import kg.gov.mf.loan.process.model.LoanSummary;
+import kg.gov.mf.loan.process.model.OnDate;
 import kg.gov.mf.loan.process.service.LoanDetailedSummaryService;
 import kg.gov.mf.loan.process.service.LoanSummaryService;
 import org.quartz.*;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 @Transactional
 @Component
@@ -35,9 +38,12 @@ public class CalculateLoanSummaryJob implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
-        Date onDate = getOnDateFromJobCaller(context);
-        if(onDate == null) throw new NullPointerException(); //Write Custom Exception
-        fillLoanSummaryForDate(onDate);
+        JobItem job = getJobItemFromJobCaller(context);
+        if(job == null) throw new NullPointerException(); //Write Custom Exception
+        Set<OnDate> onDates = job.getOnDates();
+        if(onDates == null) throw new NullPointerException(); //Write Custom Exception
+        for (OnDate date: onDates)
+            fillLoanSummaryForDate(date.getOnDate());
     }
 
     private void fillLoanSummaryForDate(Date onDate)
@@ -52,7 +58,7 @@ public class CalculateLoanSummaryJob implements Job {
             CreditTerm term = termService.getRecentTermByLoanId(loan.getId());
             if(term == null) throw new NullPointerException(); //Write Custom Exception
 
-            LoanDetailedSummary lastDetailedSummary = loanDetailedSummaryService.getLastSummaryByLoanId(loan.getId());
+            LoanDetailedSummary lastDetailedSummary = loanDetailedSummaryService.getLastSummaryByLoanIdAndLTEOnDate(loan.getId(), onDate);
             if(lastDetailedSummary != null)
             {
                 LoanSummary summary = new LoanSummary();
@@ -60,13 +66,13 @@ public class CalculateLoanSummaryJob implements Job {
                 summary.setLoan(loan);
                 summary.setLoanAmount(loan.getAmount());
                 summary.setOutstadingPrincipal(lastDetailedSummary.getPrincipalOutstanding());
-                int daysInPeriod = DateUtils.getDifferenceDays(onDate, DateUtils.subtract(lastDetailedSummary.getOnDate(), DateUtils.DAY,1));
-                summary.setOutstadingInterest(calculateOutstandingInterest(lastDetailedSummary.getPrincipalOutstanding(), term, daysInPeriod));
-                summary.setOutstadingPenalty(calculateOutstandingPenalty(lastDetailedSummary.getPrincipalOverdue(), lastDetailedSummary.getInterestOverdue(), term, daysInPeriod));
+                int daysInPeriod = DateUtils.getDifferenceDays(DateUtils.subtract(onDate, DateUtils.DAY, 1), DateUtils.subtract(lastDetailedSummary.getOnDate(), DateUtils.DAY,1));
+                summary.setOutstadingInterest(lastDetailedSummary.getInterestOutstanding() + calculateOutstandingInterest(lastDetailedSummary.getPrincipalOutstanding(), term, daysInPeriod));
+                summary.setOutstadingPenalty(lastDetailedSummary.getPenaltyOutstanding() + calculateOutstandingPenalty(lastDetailedSummary.getPrincipalOverdue(), lastDetailedSummary.getInterestOverdue(), term, daysInPeriod));
                 summary.setOutstadingFee(0.0);
                 summary.setOverduePrincipal(lastDetailedSummary.getPrincipalOverdue());
                 summary.setOverdueInterest(lastDetailedSummary.getInterestOverdue());
-                summary.setOverduePenalty(lastDetailedSummary.getPenaltyOverdue());
+                summary.setOverduePenalty(lastDetailedSummary.getPenaltyOverdue() + calculateOutstandingPenalty(lastDetailedSummary.getPrincipalOverdue(), lastDetailedSummary.getInterestOverdue(), term, daysInPeriod));
                 summary.setOverdueFee(0.0);
                 summary.setPaidPrincipal(lastDetailedSummary.getTotalPrincipalPaid());
                 summary.setPaidInterest(lastDetailedSummary.getTotalInterestPaid());
@@ -84,14 +90,34 @@ public class CalculateLoanSummaryJob implements Job {
     private Double calculateOutstandingInterest(Double principalOutstanding, CreditTerm term, int daysInPeriod)
     {
         Double interestRateValue = term.getInterestRateValue();
-        return (principalOutstanding*interestRateValue/360)/100*daysInPeriod;
+        int numberOfDays = (term.getDaysInYearMethod().getId() == 1? 365:360);
+        return (principalOutstanding*interestRateValue/numberOfDays)/100*daysInPeriod;
     }
 
     private Double calculateOutstandingPenalty(Double principalOverdue, Double interestOverdue, CreditTerm term, int daysInPeriod)
     {
         Double penaltyOnPrincipalOverdueRate = term.getPenaltyOnPrincipleOverdueRateValue();
         Double penaltyOnInterestOverdueRate = term.getPenaltyOnInterestOverdueRateValue();
-        return (principalOverdue*penaltyOnPrincipalOverdueRate/100*daysInPeriod/360) + (interestOverdue*penaltyOnInterestOverdueRate/100*daysInPeriod/360);
+        int numberOfDays = (term.getDaysInYearMethod().getId() == 1? 365:360);
+        return (principalOverdue*penaltyOnPrincipalOverdueRate/100*daysInPeriod/numberOfDays) + (interestOverdue*penaltyOnInterestOverdueRate/100*daysInPeriod/numberOfDays);
+    }
+
+    private JobItem getJobItemFromJobCaller(JobExecutionContext context)
+    {
+        JobItem job = null;
+
+        try
+        {
+            SchedulerContext schedulerContext = context.getScheduler().getContext();
+            job = (JobItem) schedulerContext.get("jobItem");
+
+        }
+        catch(SchedulerException ex)
+        {
+            ex.printStackTrace();
+        }
+
+        return job;
     }
 
     private Date getOnDateFromJobCaller(JobExecutionContext context)

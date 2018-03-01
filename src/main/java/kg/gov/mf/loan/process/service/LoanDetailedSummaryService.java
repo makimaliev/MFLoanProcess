@@ -8,6 +8,6 @@ import java.util.Date;
 public interface LoanDetailedSummaryService extends GenericService<LoanDetailedSummary> {
 
     LoanDetailedSummary getByOnDateAndLoanId(Date onDate, long loanId);
-    LoanDetailedSummary getLastSummaryByLoanId(long loanId);
+    LoanDetailedSummary getLastSummaryByLoanIdAndLTEOnDate(long loanId, Date onDate);
 
 }

@@ -1,23 +1,22 @@
 package kg.gov.mf.loan.process.model;
 
 import kg.gov.mf.loan.manage.model.GenericModel;
-import org.springframework.format.annotation.DateTimeFormat;
 
 import javax.persistence.*;
-import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
-@Table(name="job")
-public class Job extends GenericModel{
+@Table(name="jobItem")
+public class JobItem extends GenericModel{
 
     private String name;
     private String cronExpression;
     private boolean enabled;
 
-    @DateTimeFormat(pattern = "yyyy-MM-dd")
-    @Temporal(TemporalType.DATE)
-    @Column(nullable=false)
-    private Date onDate;
+    @OneToMany(mappedBy = "jobItem", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval=true)
+    @OrderBy("onDate")
+    private Set<OnDate> onDates = new HashSet<OnDate>();
 
     public String getName() {
         return name;
@@ -37,6 +36,12 @@ public class Job extends GenericModel{
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
-    public Date getOnDate() { return onDate; }
-    public void setOnDate(Date onDate) { this.onDate = onDate; }
+
+    public Set<OnDate> getOnDates() {
+        return onDates;
+    }
+
+    public void setOnDates(Set<OnDate> onDates) {
+        this.onDates = onDates;
+    }
 }

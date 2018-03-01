@@ -10,7 +10,9 @@ import kg.gov.mf.loan.manage.service.loan.PaymentScheduleService;
 import kg.gov.mf.loan.manage.service.loan.PaymentService;
 import kg.gov.mf.loan.manage.util.DateUtils;
 import kg.gov.mf.loan.process.model.Accrue;
+import kg.gov.mf.loan.process.model.JobItem;
 import kg.gov.mf.loan.process.model.LoanDetailedSummary;
+import kg.gov.mf.loan.process.model.OnDate;
 import kg.gov.mf.loan.process.service.AccrueService;
 import kg.gov.mf.loan.process.service.LoanDetailedSummaryService;
 import org.quartz.*;
@@ -46,9 +48,12 @@ public class CalculateLoanDetailedSummaryJob implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
-        Date onDate = getOnDateFromJobCaller(context);
-        if(onDate == null) throw new NullPointerException(); //Write Custom Exception
-        fillLoanDetailSummaryForDate(onDate);
+        JobItem job = getJobItemFromJobCaller(context);
+        if(job == null) throw new NullPointerException(); //Write Custom Exception
+        Set<OnDate> onDates = job.getOnDates();
+        if(onDates == null) throw new NullPointerException(); //Write Custom Exception
+        for (OnDate date: onDates)
+            fillLoanDetailSummaryForDate(date.getOnDate());
     }
 
     private void fillLoanDetailSummaryForDate(Date onDate)
@@ -60,7 +65,7 @@ public class CalculateLoanDetailedSummaryJob implements Job {
             if(loanDetailedSummaryService.getByOnDateAndLoanId(onDate, loan.getId())!=null)
                 continue;
 
-            LoanDetailedSummary lastSummary = loanDetailedSummaryService.getLastSummaryByLoanId(loan.getId());
+            LoanDetailedSummary lastSummary = loanDetailedSummaryService.getLastSummaryByLoanIdAndLTEOnDate(loan.getId(), onDate);
             Accrue accrue = null;
 
             CreditTerm term = termService.getRecentTermByLoanId(loan.getId());
@@ -222,8 +227,9 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                 {
                     accrue.setInterestAccrued(interestAccrued);
                     accrue.setPenaltyAccrued(penaltyAccrued);
-                    accrue.setPenaltyOnPrincipalOverdue(principalOverdue*term.getPenaltyOnPrincipleOverdueRateValue()/100*daysInPeriod/360);
-                    accrue.setPenaltyOnInterestOverdue(interestOverdue*term.getPenaltyOnInterestOverdueRateValue()/100*daysInPeriod/360);
+                    int numberOfDays = (term.getDaysInYearMethod().getId() == 1? 365:360);
+                    accrue.setPenaltyOnPrincipalOverdue(principalOverdue*term.getPenaltyOnPrincipleOverdueRateValue()/100*daysInPeriod/numberOfDays);
+                    accrue.setPenaltyOnInterestOverdue(interestOverdue*term.getPenaltyOnInterestOverdueRateValue()/100*daysInPeriod/numberOfDays);
                     accrue.setLastInstPassed(false);
                     accrueService.add(accrue);
                 }
@@ -251,16 +257,36 @@ public class CalculateLoanDetailedSummaryJob implements Job {
         return onDate;
     }
 
+    private JobItem getJobItemFromJobCaller(JobExecutionContext context)
+    {
+        JobItem job = null;
+
+        try
+        {
+            SchedulerContext schedulerContext = context.getScheduler().getContext();
+            job = (JobItem) schedulerContext.get("jobItem");
+
+        }
+        catch(SchedulerException ex)
+        {
+            ex.printStackTrace();
+        }
+
+        return job;
+    }
+
     private Double calculateInterestAccrued(Double principalOutstanding, CreditTerm term, int daysInPeriod)
     {
         Double interestRateValue = term.getInterestRateValue();
-        return (principalOutstanding*interestRateValue/360)/100*daysInPeriod;
+        int numberOfDays = (term.getDaysInYearMethod().getId() == 1? 365:360);
+        return (principalOutstanding*interestRateValue/numberOfDays)/100*daysInPeriod;
     }
 
     private Double calculatePenaltyAccrued(Double principalOverdue, Double interestOverdue, CreditTerm term, int daysInPeriod)
     {
         Double penaltyOnPrincipalOverdueRate = term.getPenaltyOnPrincipleOverdueRateValue();
         Double penaltyOnInterestOverdueRate = term.getPenaltyOnInterestOverdueRateValue();
-        return (principalOverdue*penaltyOnPrincipalOverdueRate/100*daysInPeriod/360) + (interestOverdue*penaltyOnInterestOverdueRate/100*daysInPeriod/360);
+        int numberOfDays = (term.getDaysInYearMethod().getId() == 1? 365:360);
+        return (principalOverdue*penaltyOnPrincipalOverdueRate/100*daysInPeriod/numberOfDays) + (interestOverdue*penaltyOnInterestOverdueRate/100*daysInPeriod/numberOfDays);
     }
 }
