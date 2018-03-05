@@ -1,6 +1,7 @@
 package kg.gov.mf.loan.process.dao;
 
 import kg.gov.mf.loan.manage.dao.GenericDaoImpl;
+import kg.gov.mf.loan.manage.util.DateUtils;
 import kg.gov.mf.loan.process.model.LoanSummary;
 import org.springframework.stereotype.Repository;
 
@@ -11,7 +12,7 @@ public class LoanSummaryDaoImpl extends GenericDaoImpl<LoanSummary> implements L
 
     @Override
     public LoanSummary getByOnDateAndLoanId(Date onDate, long loanId){
-        return (LoanSummary) getCurrentSession().createQuery("from LoanSummary where onDate = '" + onDate + "' and loanId = '" + loanId + "'").uniqueResult();
+        return (LoanSummary) getCurrentSession().createQuery("from LoanSummary where onDate = '" + DateUtils.format(onDate, DateUtils.FORMAT_POSTGRES_DATE) + "' and loanId = '" + loanId + "'").uniqueResult();
     }
 
 }

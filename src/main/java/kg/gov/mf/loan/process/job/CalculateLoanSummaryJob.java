@@ -55,7 +55,7 @@ public class CalculateLoanSummaryJob implements Job {
             if(loanSummaryService.getByOnDateAndLoanId(onDate, loan.getId()) != null)
                 continue;
 
-            CreditTerm term = termService.getRecentTermByLoanId(loan.getId());
+            CreditTerm term = termService.getRecentTermByLoanIdAndOnDate(loan.getId(), onDate);
             if(term == null) throw new NullPointerException(); //Write Custom Exception
 
             LoanDetailedSummary lastDetailedSummary = loanDetailedSummaryService.getLastSummaryByLoanIdAndLTEOnDate(loan.getId(), onDate);

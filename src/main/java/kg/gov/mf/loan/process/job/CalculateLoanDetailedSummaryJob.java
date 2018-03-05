@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -52,8 +53,16 @@ public class CalculateLoanDetailedSummaryJob implements Job {
         if(job == null) throw new NullPointerException(); //Write Custom Exception
         Set<OnDate> onDates = job.getOnDates();
         if(onDates == null) throw new NullPointerException(); //Write Custom Exception
-        for (OnDate date: onDates)
-            fillLoanDetailSummaryForDate(date.getOnDate());
+
+        Date startDate = onDates.iterator().next().getOnDate();
+        Date today = new Date();
+
+        while(startDate.compareTo(today) <= 0)
+        {
+            fillLoanDetailSummaryForDate(startDate);
+            removePreviosDate(DateUtils.subtract(startDate, DateUtils.DAY,1), onDates);
+            startDate = DateUtils.add(startDate, DateUtils.DAY, 1);
+        }
     }
 
     private void fillLoanDetailSummaryForDate(Date onDate)
@@ -68,7 +77,7 @@ public class CalculateLoanDetailedSummaryJob implements Job {
             LoanDetailedSummary lastSummary = loanDetailedSummaryService.getLastSummaryByLoanIdAndLTEOnDate(loan.getId(), onDate);
             Accrue accrue = null;
 
-            CreditTerm term = termService.getRecentTermByLoanId(loan.getId());
+            CreditTerm term = termService.getRecentTermByLoanIdAndOnDate(loan.getId(), onDate);
             if(term == null) throw new NullPointerException(); //Write Custom Exception
 
             LoanDetailedSummary summary = new LoanDetailedSummary();
@@ -237,6 +246,40 @@ public class CalculateLoanDetailedSummaryJob implements Job {
             }
             loanDetailedSummaryService.add(summary);
         }
+    }
+
+    private void removePreviosDate(Date startDate, Set<OnDate> onDates)
+    {
+        List<Loan> loans = loanService.list();
+        for (Loan loan: loans) {
+            LoanDetailedSummary prevSummary = loanDetailedSummaryService.getByOnDateAndLoanId(startDate, loan.getId());
+            if(prevSummary != null)
+            {
+                if (startDateOnCriticalDate(startDate, onDates))
+                    continue;
+
+                loanDetailedSummaryService.remove(prevSummary);
+
+                Accrue accrue = accrueService.getByOnDateAndLoanId(DateUtils.subtract(startDate, DateUtils.DAY,1), loan.getId());
+                if(accrue != null)
+                {
+                    accrueService.remove(accrue);
+                }
+            }
+        }
+    }
+
+    private boolean startDateOnCriticalDate(Date startDate, Set<OnDate> onDates)
+    {
+        Iterator<OnDate> iterator = onDates.iterator();
+        while(iterator.hasNext())
+        {
+            Date onDate = iterator.next().getOnDate();
+            if(onDate.compareTo(startDate) == 0)
+                return true;
+
+        }
+        return false;
     }
 
     private Date getOnDateFromJobCaller(JobExecutionContext context)
