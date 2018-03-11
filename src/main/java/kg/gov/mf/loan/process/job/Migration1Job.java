@@ -7,7 +7,9 @@ import kg.gov.mf.loan.admin.sys.service.UserService;
 import kg.gov.mf.loan.manage.model.collateral.InspectionResultType;
 import kg.gov.mf.loan.manage.model.collateral.ItemType;
 import kg.gov.mf.loan.manage.model.collateral.QuantityType;
+import kg.gov.mf.loan.manage.model.debtor.Debtor;
 import kg.gov.mf.loan.manage.model.debtor.DebtorType;
+import kg.gov.mf.loan.manage.model.debtor.Owner;
 import kg.gov.mf.loan.manage.model.debtor.WorkSector;
 import kg.gov.mf.loan.manage.model.loan.LoanState;
 import kg.gov.mf.loan.manage.model.loan.LoanType;
@@ -44,6 +46,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.*;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 @Transactional
 @Component
@@ -282,12 +286,13 @@ public class Migration1Job implements Job{
                             "from person, person_details,address,phone\n" +
                             "where person.id = person_details.person_id AND\n" +
                             "      address.user_id = person.id AND address.contact_type = 2 AND\n" +
-                            "      phone.user_id = person.id and phone.contact_type = 2 order by person.id  LIMIT  100 OFFSET 5000");
+                            "      phone.user_id = person.id and phone.contact_type = 2 order by person.id  LIMIT  100 OFFSET 2000");
                     if(rs != null)
                     {
                         while (rs.next())
                         {
 
+                            boolean isPerson = true;
 
                             Address address = new Address();
 
@@ -296,16 +301,152 @@ public class Migration1Job implements Job{
                             if(this.regionService.findByCode(String.valueOf(rs.getInt("region")))!=null)
                                 region = this.regionService.findByCode(String.valueOf(rs.getInt("region")));
 
-                            address.setRegion(region); // Bishkek
+                            address.setRegion(region);
 
                             District district = new District();
 
                             if(this.districtService.findById(rs.getInt("district")==0 ? 1 : rs.getInt("district"))!= null)
                                 district = this.districtService.findById(rs.getInt("district")==0 ? 1 : rs.getInt("district"));
 
-                            address.setDistrict(district); // Pervomayskiy raion
+                            address.setDistrict(district);
+
+                            Aokmotu aokmotu = new Aokmotu();
+                            if(rs.getInt("aokmotu_id")>0)
+                            {
+                                aokmotu = this.aokmotuService.findById(rs.getInt("aokmotu_id"));
+                                address.setAokmotu(aokmotu);
+                            }
+
+
+                            Village village = new Village();
+                            if(rs.getInt("selo_id")>0)
+                            {
+                                village = this.villageService.findById(rs.getInt("selo_id"));
+                                address.setVillage(village);
+                            }
+
                             address.setLine(rs.getString("address_line1"));
 
+                            AddressDetails addressDetails = new AddressDetails();
+
+                            addressDetails.setName(String.valueOf(rs.getLong("person_id")));
+
+//                            address.setAddressDetails(addressDetails);
+
+                            Contact contact = new Contact();
+                            if(!(rs.getString("number")=="" || rs.getString("number")==null))
+                                contact.setName(rs.getString("number"));
+
+
+                            IdentityDoc identityDoc = new IdentityDoc();
+
+                            if(rs.getShort("type")==2) isPerson =false;
+
+                            if(rs.getShort("document_type")==1)
+                            {
+                                identityDoc.setIdentityDocGivenBy(identityDocGivenByService.findById(1)); //MKK
+                            }
+                            else
+                            {
+                                identityDoc.setIdentityDocGivenBy(identityDocGivenByService.findById(2)); //MinJust
+                                isPerson = false;
+                            }
+
+                            if(rs.getString("title").contains("ов")||
+                                    rs.getString("title").contains("ова")||
+                                    rs.getString("title").contains("ев")||
+                                    rs.getString("title").contains("ева")||
+                                    rs.getString("title").contains("уулу")||
+                                    rs.getString("title").contains("кызы")
+                                    )
+                            {
+                                if(!isPerson) isPerson = true;
+                            }
+
+                            identityDoc.setIdentityDocType(identityDocTypeService.findById(rs.getShort("document_type"))); // Passport
+
+
+                            identityDoc.setEnabled(true);
+
+                            if(rs.getDate("of_reg_date")!=null)
+                                identityDoc.setDate(rs.getDate("of_reg_date"));
+
+                            if(rs.getString("of_reg_id")!=null)
+                            identityDoc.setPin(rs.getString("of_reg_id"));
+                            else identityDoc.setPin("-");
+
+
+                            identityDoc.setNumber(rs.getString("of_reg_series")+rs.getString("of_reg_number"));
+
+                            identityDoc.setName(identityDoc.getIdentityDocType().getName() + " "+ identityDoc.getNumber());
+
+                            IdentityDocDetails identityDocDetails = new IdentityDocDetails();
+                            identityDocDetails.setFirstname(rs.getString("title"));
+                            identityDocDetails.setLastname(rs.getString("title"));
+                            identityDocDetails.setFullname(rs.getString("title"));
+                            identityDocDetails.setMidname(rs.getString("title"));
+
+                            identityDoc.setIdentityDocDetails(identityDocDetails);
+
+                            if(isPerson)
+                            {
+                                Person person = new Person();
+                                person.setName(rs.getString("title"));
+                                person.setEnabled(true);
+                                person.setAddress(address);
+                                person.setContact(contact);
+                                person.setIdentityDoc(identityDoc);
+                                person.setDescription(String.valueOf(rs.getLong("person_id")));
+
+                                this.personService.create(person);
+
+
+                            }
+                            else
+                            {
+                                Organization organization = new Organization();
+
+                                organization.setName(rs.getString("title"));
+                                organization.setAddress(address);
+                                organization.setContact(contact);
+                                organization.setIdentityDoc(identityDoc);
+                                organization.setOrgForm(this.orgFormService.findById(2));
+                                organization.setEnabled(true);
+                                organization.setDescription(String.valueOf(rs.getLong("person_id")));
+
+                                Department chief = new Department();
+                                chief.setOrganization(organization);
+                                chief.setName("Руководство");
+                                chief.setDescription("");
+                                chief.setEnabled(true);
+
+                                Position responsible = new Position();
+                                responsible.setName("Руководитель");
+
+                                Position accountant = new Position();
+                                accountant.setName("Гл. бухгалтер");
+
+                                Set<Position> positions = new HashSet<Position>();
+                                positions.add(responsible);
+                                positions.add(accountant);
+
+                                chief.setPosition(positions);
+
+                                Set<Department> departments = new HashSet<Department>();
+                                organization.setDepartment(departments);
+
+
+                                this.organizationService.create(organization);
+
+
+                                System.out.println(organization.getId());
+                                /*Staff chiefStaff = new Staff();
+                                chiefStaff.setOrganization(organization);
+                                chiefStaff.setDepartment(chief);
+                                chiefStaff.setPosition(responsible);
+                                */
+
+                            }
                         }
 
                         migrationSuccess = true;
