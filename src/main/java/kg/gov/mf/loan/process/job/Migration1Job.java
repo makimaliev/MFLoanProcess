@@ -4,6 +4,37 @@ import kg.gov.mf.loan.admin.org.model.*;
 import kg.gov.mf.loan.admin.org.service.*;
 import kg.gov.mf.loan.admin.sys.model.User;
 import kg.gov.mf.loan.admin.sys.service.UserService;
+import kg.gov.mf.loan.manage.model.collateral.InspectionResultType;
+import kg.gov.mf.loan.manage.model.collateral.ItemType;
+import kg.gov.mf.loan.manage.model.collateral.QuantityType;
+import kg.gov.mf.loan.manage.model.debtor.DebtorType;
+import kg.gov.mf.loan.manage.model.debtor.WorkSector;
+import kg.gov.mf.loan.manage.model.loan.LoanState;
+import kg.gov.mf.loan.manage.model.loan.LoanType;
+import kg.gov.mf.loan.manage.model.loan.PaymentType;
+import kg.gov.mf.loan.manage.model.order.CreditOrder;
+import kg.gov.mf.loan.manage.model.order.CreditOrderState;
+import kg.gov.mf.loan.manage.model.order.CreditOrderType;
+import kg.gov.mf.loan.manage.model.orderterm.OrderTermCurrency;
+import kg.gov.mf.loan.manage.model.orderterm.OrderTermDaysMethod;
+import kg.gov.mf.loan.manage.model.orderterm.OrderTermFloatingRateType;
+import kg.gov.mf.loan.manage.model.orderterm.OrderTermFund;
+import kg.gov.mf.loan.manage.service.collateral.ConditionTypeService;
+import kg.gov.mf.loan.manage.service.collateral.InspectionResultTypeService;
+import kg.gov.mf.loan.manage.service.collateral.ItemTypeService;
+import kg.gov.mf.loan.manage.service.collateral.QuantityTypeService;
+import kg.gov.mf.loan.manage.service.debtor.DebtorTypeService;
+import kg.gov.mf.loan.manage.service.debtor.WorkSectorService;
+import kg.gov.mf.loan.manage.service.loan.LoanStateService;
+import kg.gov.mf.loan.manage.service.loan.LoanTypeService;
+import kg.gov.mf.loan.manage.service.loan.PaymentTypeService;
+import kg.gov.mf.loan.manage.service.order.CreditOrderService;
+import kg.gov.mf.loan.manage.service.order.CreditOrderStateService;
+import kg.gov.mf.loan.manage.service.order.CreditOrderTypeService;
+import kg.gov.mf.loan.manage.service.orderterm.OrderTermCurrencyService;
+import kg.gov.mf.loan.manage.service.orderterm.OrderTermDaysMethodService;
+import kg.gov.mf.loan.manage.service.orderterm.OrderTermFloatingRateTypeService;
+import kg.gov.mf.loan.manage.service.orderterm.OrderTermFundService;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
@@ -12,10 +43,60 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.*;
+import java.util.Date;
 
 @Transactional
 @Component
 public class Migration1Job implements Job{
+
+    @Autowired
+    CreditOrderService creditOrderService;
+
+
+    @Autowired
+    DebtorTypeService debtorTypeService;
+
+    @Autowired
+    LoanTypeService loanTypeService;
+
+    @Autowired
+    ItemTypeService itemTypeService;
+
+    @Autowired
+    QuantityTypeService quantityTypeService;
+
+    @Autowired
+    LoanStateService loanStateService;
+
+    @Autowired
+    WorkSectorService workSectorService;
+
+    @Autowired
+    PaymentTypeService paymentTypeService;
+
+    @Autowired
+    ConditionTypeService conditionTypeService;
+
+    @Autowired
+    InspectionResultTypeService inspectionResultTypeService;
+
+    @Autowired
+    OrderTermFloatingRateTypeService orderTermFloatingRateTypeService;
+
+    @Autowired
+    OrderTermDaysMethodService orderTermDaysMethodService;
+
+    @Autowired
+    OrderTermCurrencyService orderTermCurrencyService;
+
+    @Autowired
+    OrderTermFundService orderTermFundService;
+
+    @Autowired
+    CreditOrderStateService creditOrderStateService;
+
+    @Autowired
+    CreditOrderTypeService creditOrderTypeService;
 
     @Autowired
     PersonService personService;
@@ -100,6 +181,60 @@ public class Migration1Job implements Job{
        boolean userMigrationDone = done;
         if(!userMigrationDone) userMigrationDone = this.migrateUsers(connection);
 
+        boolean orderStateMigrationDone = done;
+        if(!orderStateMigrationDone) orderStateMigrationDone = this.orderStateMigrate(connection);
+
+        boolean orderTypeMigrationDone = done;
+        if(!orderTypeMigrationDone) orderTypeMigrationDone = this.orderTypeMigrate(connection);
+
+        boolean loanFundMigrationDone = done;
+        if(!loanFundMigrationDone) loanFundMigrationDone = this.loanFundMigrate(connection);
+
+        boolean loanCurrencyMigrationDone = done;
+        if(!loanCurrencyMigrationDone) loanCurrencyMigrationDone = this.loanCurrencyMigrate(connection);
+
+        boolean daysCalcMethodMigrationDone = done;
+        if(!daysCalcMethodMigrationDone) daysCalcMethodMigrationDone = this.daysCalcMethodMigrate(connection);
+
+        boolean rateTypeMigrationDone = done;
+        if(!rateTypeMigrationDone) rateTypeMigrationDone = this.rateTypeMigrate(connection);
+
+        boolean debtorTypeMigrationDone = done;
+        if(!debtorTypeMigrationDone) debtorTypeMigrationDone = this.debtorTypeMigrate(connection);
+
+        boolean loanTypeMigrationDone = done;
+        if(!loanTypeMigrationDone) loanTypeMigrationDone = this.loanTypeMigrate(connection);
+
+        boolean itemTypeMigrationDone = done;
+        if(!itemTypeMigrationDone) itemTypeMigrationDone = this.itemTypeMigrate(connection);
+
+        boolean quantityTypeMigrationDone = done;
+        if(!quantityTypeMigrationDone) quantityTypeMigrationDone = this.quantityTypeMigrate(connection);
+
+        boolean paymentTypeMigrationDone = done;
+        if(!paymentTypeMigrationDone) paymentTypeMigrationDone = this.paymentTypeMigrate(connection);
+
+        boolean inspectionResultTypeMigrationDone = done;
+        if(!inspectionResultTypeMigrationDone) inspectionResultTypeMigrationDone = this.inspectionResultTypeMigrate(connection);
+
+        boolean loanStatusMigrationDone = done;
+        if(!loanStatusMigrationDone) loanStatusMigrationDone = this.loanStatusMigrate(connection);
+
+        boolean workSectorMigrationDone = done;
+        if(!workSectorMigrationDone) workSectorMigrationDone = this.workSectorMigrate(connection);
+
+        boolean creditOrderMigrationDone = done;
+        if(!creditOrderMigrationDone) creditOrderMigrationDone = this.creditOrderMigrate(connection);
+/*
+        boolean rateTypeMigrationDone = false;
+        if(!rateTypeMigrationDone) rateTypeMigrationDone = this.rateTypeMigrate(connection);
+        */
+        boolean debtorMigrationDone = false;
+        if(!debtorMigrationDone) debtorMigrationDone = this.debtorMigrate(connection);
+
+
+
+
         System.out.println(" OrgForm migration process == "+orgFormMigrationDone);
         System.out.println(" Region migration process == "+regionMigrationDone);
         System.out.println(" District migration process == "+districtMigrationDone);
@@ -110,10 +245,869 @@ public class Migration1Job implements Job{
         System.out.println(" Department migration process == "+departmentMigrationDone);
         System.out.println(" Position migration process == "+positionMigrationDone);
         System.out.println(" User migration process == "+userMigrationDone);
+
+
+        System.out.println(" Debtor Type migration process == "+debtorTypeMigrationDone);
+        System.out.println(" Loan Type migration process == "+loanTypeMigrationDone);
+        System.out.println(" Item Type migration process == "+itemTypeMigrationDone);
+        System.out.println(" Quantity Type migration process == "+quantityTypeMigrationDone);
+        System.out.println(" Payment Type migration process == "+paymentTypeMigrationDone);
+        System.out.println(" Inspection Result Type migration process == "+inspectionResultTypeMigrationDone);
+        System.out.println(" Loan State migration process == "+loanStatusMigrationDone);
+        System.out.println(" WorkSector migration process == "+workSectorMigrationDone);
+
+        System.out.println(" Credit Order migration process == "+creditOrderMigrationDone);
+
+    }
+
+
+    private boolean debtorMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select\n" +
+                            "  (select aokmotu.title from aokmotu where aokmotu.region = address.region_code and address.district_code = aokmotu.district and address.a_okmotu_code = aokmotu.aokmotu LIMIT 1 ) as aokmotu_title,\n" +
+                            "  (select selo.title from selo where selo.region = address.region_code and address.district_code = selo.district and address.a_okmotu_code = selo.aokmotu and address.selo = selo.selo_code LIMIT 1 ) as selo_title,\n" +
+                            "  (select aokmotu.id from aokmotu where aokmotu.region = address.region_code and address.district_code = aokmotu.district and address.a_okmotu_code = aokmotu.aokmotu LIMIT 1 ) as aokmotu_id,\n" +
+                            "  (select selo.id from selo where selo.region = address.region_code and address.district_code = selo.district and address.a_okmotu_code = selo.aokmotu and address.selo = selo.selo_code LIMIT 1 ) as selo_id,\n" +
+                            "\n" +
+                            "*\n" +
+                            "from person, person_details,address,phone\n" +
+                            "where person.id = person_details.person_id AND\n" +
+                            "      address.user_id = person.id AND address.contact_type = 2 AND\n" +
+                            "      phone.user_id = person.id and phone.contact_type = 2 order by person.id  LIMIT  100 OFFSET 5000");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+
+
+                            Address address = new Address();
+
+                            Region region = new Region();
+
+                            if(this.regionService.findByCode(String.valueOf(rs.getInt("region")))!=null)
+                                region = this.regionService.findByCode(String.valueOf(rs.getInt("region")));
+
+                            address.setRegion(region); // Bishkek
+
+                            District district = new District();
+
+                            if(this.districtService.findById(rs.getInt("district")==0 ? 1 : rs.getInt("district"))!= null)
+                                district = this.districtService.findById(rs.getInt("district")==0 ? 1 : rs.getInt("district"));
+
+                            address.setDistrict(district); // Pervomayskiy raion
+                            address.setLine(rs.getString("address_line1"));
+
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
     }
 
 
 
+    private boolean creditOrderMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from credit_order ORDER BY id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            CreditOrder creditOrder = new CreditOrder();
+
+                            if(rs.getString("number").length()>19)
+                                creditOrder.setRegNumber(rs.getString("number").substring(0,19));
+                            else creditOrder.setRegNumber(rs.getString("number"));
+
+                            if(rs.getDate("date")!=null)
+                                creditOrder.setRegDate(rs.getDate("date"));
+                            else creditOrder.setRegDate(new Date());
+
+                            CreditOrderType orderType = this.creditOrderTypeService.getById((long)rs.getInt("type"));
+                            if(orderType!=null) creditOrder.setCreditOrderType(orderType);
+                                else creditOrder.setCreditOrderType(this.creditOrderTypeService.getById((long)1));
+
+                            CreditOrderState orderState = this.creditOrderStateService.getById((long)rs.getInt("record_status"));
+                            if(orderState!=null) creditOrder.setCreditOrderState(orderState);
+
+                            this.creditOrderService.add(creditOrder);
+
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+
+    private boolean workSectorMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 24 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            WorkSector newEntity = new WorkSector();
+                            newEntity.setName(rs.getString("type_name"));
+
+                            workSectorService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+    private boolean loanStatusMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 23 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            LoanState newEntity = new LoanState();
+                            newEntity.setName(rs.getString("type_name"));
+
+                            loanStateService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+    private boolean inspectionResultTypeMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 42 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            InspectionResultType newEntity = new InspectionResultType();
+                            newEntity.setName(rs.getString("type_name"));
+
+                            inspectionResultTypeService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+    private boolean paymentTypeMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 41 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            PaymentType newEntity = new PaymentType();
+                            newEntity.setName(rs.getString("type_name"));
+
+                            paymentTypeService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+
+    private boolean quantityTypeMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 22 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            QuantityType newEntity = new QuantityType();
+                            newEntity.setName(rs.getString("type_name"));
+
+                            quantityTypeService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+
+    private boolean itemTypeMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 17 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            ItemType newEntity = new ItemType();
+                            newEntity.setName(rs.getString("type_name"));
+
+                            itemTypeService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+    private boolean loanTypeMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 16 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            LoanType newEntity = new LoanType();
+                            newEntity.setName(rs.getString("type_name"));
+
+                            loanTypeService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+
+    private boolean debtorTypeMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 15 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            DebtorType newEntity = new DebtorType();
+                            newEntity.setName(rs.getString("type_name"));
+
+                            debtorTypeService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+    private boolean rateTypeMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 32 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            OrderTermFloatingRateType newEntity = new OrderTermFloatingRateType();
+
+
+                            newEntity.setName(rs.getString("type_name"));
+
+                            orderTermFloatingRateTypeService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+    private boolean daysCalcMethodMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 31 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            OrderTermDaysMethod newEntity = new OrderTermDaysMethod();
+
+
+                            newEntity.setName(rs.getString("type_name"));
+
+                            orderTermDaysMethodService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+    private boolean loanCurrencyMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 25 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            OrderTermCurrency newEntity = new OrderTermCurrency();
+
+
+                            newEntity.setName(rs.getString("type_name"));
+
+                            orderTermCurrencyService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+    private boolean loanFundMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 47 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            OrderTermFund newEntity = new OrderTermFund();
+
+
+                            newEntity.setName(rs.getString("type_name"));
+
+                            orderTermFundService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+
+    private boolean orderTypeMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 27 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            CreditOrderType newEntity = new CreditOrderType();
+
+                            newEntity.setName(rs.getString("type_name"));
+
+                            creditOrderTypeService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
+
+
+    private boolean orderStateMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 4 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            CreditOrderState newEntity = new CreditOrderState();
+
+                            newEntity.setName(rs.getString("type_name"));
+
+                            creditOrderStateService.add(newEntity);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
 
 
 
@@ -849,10 +1843,15 @@ public class Migration1Job implements Job{
 
         try {
 
-            connection = DriverManager.getConnection(
+  /*          connection = DriverManager.getConnection(
                     "jdbc:postgresql://31.186.54.58:5432/migration2", "postgres",
                     "armad27raptor");
 
+*/
+
+            connection = DriverManager.getConnection(
+                    "jdbc:postgresql://localhost:5432/migration", "postgres",
+                    "armad27raptor");
         } catch (SQLException e) {
 
             System.out.println("Connection Failed! Check output console");
