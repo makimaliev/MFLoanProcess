@@ -1,5 +1,7 @@
 package kg.gov.mf.loan.process.job;
 
+import kg.gov.mf.loan.admin.sys.model.User;
+import kg.gov.mf.loan.admin.sys.service.UserService;
 import kg.gov.mf.loan.manage.model.loan.CreditTerm;
 import kg.gov.mf.loan.manage.model.loan.Loan;
 import kg.gov.mf.loan.manage.model.loan.Payment;
@@ -15,6 +17,10 @@ import kg.gov.mf.loan.process.model.LoanDetailedSummary;
 import kg.gov.mf.loan.process.model.OnDate;
 import kg.gov.mf.loan.process.service.AccrueService;
 import kg.gov.mf.loan.process.service.LoanDetailedSummaryService;
+import kg.gov.mf.loan.task.model.Task;
+import kg.gov.mf.loan.task.model.TaskPriority;
+import kg.gov.mf.loan.task.model.TaskStatus;
+import kg.gov.mf.loan.task.service.TaskService;
 import org.quartz.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -46,6 +52,12 @@ public class CalculateLoanDetailedSummaryJob implements Job {
 
     @Autowired
     AccrueService accrueService;
+
+    @Autowired
+    TaskService taskService;
+
+    @Autowired
+    UserService userService;
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
@@ -245,7 +257,32 @@ public class CalculateLoanDetailedSummaryJob implements Job {
 
             }
             loanDetailedSummaryService.add(summary);
+            createTaskIfOverdue(summary, onDate);
         }
+    }
+
+    private void createTaskIfOverdue(LoanDetailedSummary summary, Date onDate){
+
+        if(summary.getPrincipalOverdue() + summary.getInterestOverdue() > 0.0)
+        {
+            Loan loan = summary.getLoan();
+            User user = userService.findByUsername("admin");
+            Task task = new Task();
+            task.setSummary("Loan Overdue Task from Job");
+            task.setDescription("Loan Overdue");
+            task.setIdentifiedByUserId(user.getId());
+            task.setIdentifiedDate(onDate);
+            task.setAssignedToUserId(loan.getSupervisorId());
+            task.setStatus(TaskStatus.OPEN);
+            task.setPriority(TaskPriority.HIGH);
+            task.setTargetResolutionDate(DateUtils.add(onDate, DateUtils.DAY,7));
+            task.setCreatedOn(onDate);
+            task.setCreatedBy(user);
+            task.setModifiedOn(onDate);
+            task.setModifiedByUserId(user.getId());
+            taskService.add(task);
+        }
+
     }
 
     private void removePreviosDate(Date startDate, Set<OnDate> onDates)
