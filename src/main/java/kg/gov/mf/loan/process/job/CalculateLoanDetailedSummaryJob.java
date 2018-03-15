@@ -266,21 +266,26 @@ public class CalculateLoanDetailedSummaryJob implements Job {
         if(summary.getPrincipalOverdue() + summary.getInterestOverdue() > 0.0)
         {
             Loan loan = summary.getLoan();
-            User user = userService.findByUsername("admin");
-            Task task = new Task();
-            task.setSummary("Loan Overdue Task from Job");
-            task.setDescription("Loan Overdue");
-            task.setIdentifiedByUserId(user.getId());
-            task.setIdentifiedDate(onDate);
-            task.setAssignedToUserId(loan.getSupervisorId());
-            task.setStatus(TaskStatus.OPEN);
-            task.setPriority(TaskPriority.HIGH);
-            task.setTargetResolutionDate(DateUtils.add(onDate, DateUtils.DAY,7));
-            task.setCreatedOn(onDate);
-            task.setCreatedBy(user);
-            task.setModifiedOn(onDate);
-            task.setModifiedByUserId(user.getId());
-            taskService.add(task);
+            if(taskService.getTaskByObjectTypeAndObjectId(Loan.class.getName(), loan.getId()) == null)
+            {
+                User user = userService.findByUsername("admin");
+                Task task = new Task();
+                task.setSummary("Loan Overdue Task from Job");
+                task.setDescription("Loan Overdue");
+                task.setIdentifiedByUserId(user.getId());
+                task.setIdentifiedDate(onDate);
+                task.setAssignedToUserId(loan.getSupervisorId());
+                task.setStatus(TaskStatus.OPEN);
+                task.setPriority(TaskPriority.HIGH);
+                task.setTargetResolutionDate(DateUtils.add(onDate, DateUtils.DAY,7));
+                task.setCreatedOn(onDate);
+                task.setCreatedBy(user);
+                task.setModifiedOn(onDate);
+                task.setModifiedByUserId(user.getId());
+                task.setObjectType(Loan.class.getName());
+                task.setObjectId(loan.getId());
+                taskService.add(task);
+            }
         }
 
     }
