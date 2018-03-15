@@ -42,6 +42,14 @@ import java.util.Set;
 @Component
 public class Migration1Job implements Job{
 
+    @Autowired
+    LoanGoodsService loanGoodsService;
+
+    @Autowired
+    SupervisorPlanService supervisorPlanService;
+
+    @Autowired
+    PaymentService paymentService;
 
     @Autowired
     CreditTermService creditTermService;
@@ -377,6 +385,7 @@ public class Migration1Job implements Job{
 //                            address.setAddressDetails(addressDetails);
 
                             //contact
+                            // contact
                             Contact contact = new Contact();
 
                             if(!(rs.getString("number")=="" || rs.getString("number")==null))
@@ -516,6 +525,7 @@ public class Migration1Job implements Job{
                                 owner.setEntityId(organization.getId());
                             }
 
+                            //debtor
                             Debtor debtor = new Debtor();
 
                             debtor.setName(owner.getName());
@@ -538,7 +548,7 @@ public class Migration1Job implements Job{
                                         {
                                             while (rsLoan.next())
                                             {
-
+                                                // loan
                                                 Loan loan = new Loan();
                                                 loan.setAmount(rsLoan.getDouble("cost"));
                                                 loan.setCreditOrder(this.creditOrderService.getById((long)rsLoan.getInt("credit_order_id")));
@@ -652,12 +662,15 @@ public class Migration1Job implements Job{
 
                                                                      if(rsTerm.getInt("rate_type")>0)
                                                                         term.setFloatingRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)rsTerm.getInt("rate_type")));
+                                                                     else term.setFloatingRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)2));
 
                                                                     if(rsTerm.getInt("plus_penalty")>0)
                                                                         term.setPenaltyOnPrincipleOverdueRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)rsTerm.getInt("plus_penalty")));
+                                                                    else term.setPenaltyOnPrincipleOverdueRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)2));
 
                                                                     if(rsTerm.getInt("plus_penalty")>0)
                                                                         term.setPenaltyOnInterestOverdueRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)rsTerm.getInt("plus_percent")));
+                                                                    else term.setPenaltyOnInterestOverdueRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)2));
 
                                                                     if(rsTerm.getInt("repayment_main_debt")==1)
                                                                         term.setTransactionOrder((OrderTermTransactionOrder)this.orderTermTransactionOrderService.getById((long)1));
@@ -676,6 +689,473 @@ public class Migration1Job implements Job{
                                                                 migrationSuccess = true;
                                                                 stTerm.close();
                                                                 rsTerm.close();
+                                                            }
+                                                        }
+                                                        catch (SQLException ex)
+                                                        {
+                                                            System.out.println("Connection Failed! Check output console");
+                                                            ex.printStackTrace();
+                                                            errorList.add(" credit term error 0" + ex);
+                                                            return migrationSuccess;
+                                                        }
+
+                                                    }
+                                                    else
+                                                    {
+                                                        System.out.println("Failed to make connection!");
+                                                    }
+                                                }
+                                                catch(Exception ex)
+                                                {
+                                                    System.out.println(" Error in User migration "+ex);
+                                                    errorList.add(" credit term connection error" + ex);
+                                                }
+
+
+                                                // payment migration
+
+                                                try
+                                                {
+                                                    if (connection != null) {
+                                                        ResultSet rsPayment = null;
+                                                        try
+                                                        {
+                                                            Statement stPayment = connection.createStatement();
+                                                            rsPayment = stPayment.executeQuery("select * from payments where payments.credit_id = "+rsLoan.getInt("credit_id"));
+                                                            if(rsPayment != null)
+                                                            {
+                                                                while (rsPayment.next())
+                                                                {
+                                                                    Payment payment = new Payment();
+
+                                                                    payment.setLoan(loan);
+                                                                    payment.setNumber(rsPayment.getString("payment_doc_number"));
+                                                                    payment.setPaymentDate(rsPayment.getDate("payment_date"));
+                                                                    payment.setPrincipal(rsPayment.getDouble("main"));
+                                                                    payment.setInterest(rsPayment.getDouble("percent"));
+                                                                    payment.setPenalty(rsPayment.getDouble("penalty"));
+                                                                    payment.setFee((double)0);
+                                                                    payment.setTotalAmount(rsPayment.getDouble("payments_sum"));
+                                                                    payment.setPaymentType( this.paymentTypeService.getById((long)rsPayment.getInt("payment_type")));
+
+
+                                                                    if(loan.getCurrency().getId()==1)
+                                                                        payment.setIn_loan_currency(true);
+                                                                    else
+                                                                    {
+                                                                        if(rsPayment.getInt("currency_type")==1)
+                                                                        {
+                                                                            payment.setIn_loan_currency(false);
+                                                                        }
+                                                                        else payment.setIn_loan_currency(true);
+                                                                    }
+
+                                                                    if(rsPayment.getString("decr_type")!=null)
+                                                                        payment.setDetails(rsPayment.getString("decr_type"));
+
+                                                                    this.paymentService.add(payment);
+
+                                                                }
+
+                                                                migrationSuccess = true;
+                                                                stPayment.close();
+                                                                rsPayment.close();
+                                                            }
+                                                        }
+                                                        catch (SQLException ex)
+                                                        {
+                                                            System.out.println("Connection Failed! Check output console");
+                                                            ex.printStackTrace();
+                                                            errorList.add(" credit term error 0" + ex);
+                                                            return migrationSuccess;
+                                                        }
+
+                                                    }
+                                                    else
+                                                    {
+                                                        System.out.println("Failed to make connection!");
+                                                    }
+                                                }
+                                                catch(Exception ex)
+                                                {
+                                                    System.out.println(" Error in User migration "+ex);
+                                                    errorList.add(" credit term connection error" + ex);
+                                                }
+
+
+                                                // plan  migration
+
+                                                try
+                                                {
+                                                    if (connection != null) {
+                                                        ResultSet rsPlan = null;
+                                                        try
+                                                        {
+                                                            Statement stPlan = connection.createStatement();
+                                                            rsPlan = stPlan.executeQuery("select * from plan where plan.credit_id = "+rsLoan.getInt("credit_id"));
+                                                            if(rsPlan != null)
+                                                            {
+                                                                while (rsPlan.next())
+                                                                {
+
+                                                                    if(rsPlan.getInt("status")==1)
+                                                                    {
+
+                                                                        Date jan = new Date();
+                                                                        Date feb = new Date();
+                                                                        Date mar = new Date();
+                                                                        Date apr = new Date();
+                                                                        Date may = new Date();
+                                                                        Date jun = new Date();
+                                                                        Date jul = new Date();
+                                                                        Date aug = new Date();
+                                                                        Date sep = new Date();
+                                                                        Date oct = new Date();
+                                                                        Date nov = new Date();
+                                                                        Date dec = new Date();
+
+                                                                        jan.setDate(30);
+                                                                        feb.setDate(28);
+                                                                        mar.setDate(30);
+                                                                        apr.setDate(30);
+                                                                        may.setDate(30);
+                                                                        jun.setDate(30);
+                                                                        jul.setDate(30);
+                                                                        aug.setDate(30);
+                                                                        sep.setDate(30);
+                                                                        oct.setDate(30);
+                                                                        nov.setDate(30);
+                                                                        dec.setDate(30);
+
+                                                                        jan.setMonth(1);
+                                                                        feb.setMonth(2);
+                                                                        mar.setMonth(3);
+                                                                        apr.setMonth(4);
+                                                                        may.setMonth(5);
+                                                                        jun.setMonth(6);
+                                                                        jul.setMonth(7);
+                                                                        aug.setMonth(8);
+                                                                        sep.setMonth(9);
+                                                                        oct.setMonth(10);
+                                                                        nov.setMonth(11);
+                                                                        dec.setMonth(12);
+
+                                                                        jan.setYear(rsPlan.getInt("year")-1000);
+                                                                        feb.setYear(rsPlan.getInt("year")-1000);
+                                                                        mar.setYear(rsPlan.getInt("year")-1000);
+                                                                        apr.setYear(rsPlan.getInt("year")-1000);
+                                                                        may.setYear(rsPlan.getInt("year")-1000);
+                                                                        jun.setYear(rsPlan.getInt("year")-1000);
+                                                                        jul.setYear(rsPlan.getInt("year")-1000);
+                                                                        aug.setYear(rsPlan.getInt("year")-1000);
+                                                                        sep.setYear(rsPlan.getInt("year")-1000);
+                                                                        oct.setYear(rsPlan.getInt("year")-1000);
+                                                                        nov.setYear(rsPlan.getInt("year")-1000);
+                                                                        dec.setYear(rsPlan.getInt("year")-1000);
+
+                                                                        // plan January
+
+                                                                        SupervisorPlan supervisorPlanJan = new SupervisorPlan();
+
+                                                                        supervisorPlanJan.setLoan(loan);
+                                                                        supervisorPlanJan.setPrincipal(rsPlan.getDouble("m01_main"));
+                                                                        supervisorPlanJan.setInterest(rsPlan.getDouble("m01_percent"));
+                                                                        supervisorPlanJan.setPenalty(rsPlan.getDouble("m01_penalty"));
+                                                                        supervisorPlanJan.setFee((double)0);
+                                                                        supervisorPlanJan.setAmount(rsPlan.getDouble("m01_main")+rsPlan.getDouble("m01_percent")+rsPlan.getDouble("m01_penalty"));
+                                                                        supervisorPlanJan.setDescription("");
+
+
+                                                                        supervisorPlanJan.setDate(jan);
+
+                                                                        supervisorPlanJan.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanJan.setReg_date(rsPlan.getDate("reg_date"));
+
+                                                                        // plan Feb
+
+                                                                        SupervisorPlan supervisorPlanFeb = new SupervisorPlan();
+
+                                                                        supervisorPlanFeb.setLoan(loan);
+                                                                        supervisorPlanFeb.setPrincipal(rsPlan.getDouble("m02_main"));
+                                                                        supervisorPlanFeb.setInterest(rsPlan.getDouble("m02_percent"));
+                                                                        supervisorPlanFeb.setPenalty(rsPlan.getDouble("m02_penalty"));
+                                                                        supervisorPlanFeb.setFee((double)0);
+                                                                        supervisorPlanFeb.setAmount(rsPlan.getDouble("m02_main")+rsPlan.getDouble("m02_percent")+rsPlan.getDouble("m02_penalty"));
+                                                                        supervisorPlanFeb.setDescription("");
+
+
+                                                                        supervisorPlanFeb.setDate(feb);
+
+                                                                        supervisorPlanFeb.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanFeb.setReg_date(rsPlan.getDate("reg_date"));
+
+
+                                                                        // plan Mar
+
+                                                                        SupervisorPlan supervisorPlanMar = new SupervisorPlan();
+
+                                                                        supervisorPlanMar.setLoan(loan);
+                                                                        supervisorPlanMar.setPrincipal(rsPlan.getDouble("m03_main"));
+                                                                        supervisorPlanMar.setInterest(rsPlan.getDouble("m03_percent"));
+                                                                        supervisorPlanMar.setPenalty(rsPlan.getDouble("m03_penalty"));
+                                                                        supervisorPlanMar.setFee((double)0);
+                                                                        supervisorPlanMar.setAmount(rsPlan.getDouble("m03_main")+rsPlan.getDouble("m03_percent")+rsPlan.getDouble("m03_penalty"));
+                                                                        supervisorPlanMar.setDescription("");
+
+
+                                                                        supervisorPlanMar.setDate(mar);
+
+                                                                        supervisorPlanMar.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanMar.setReg_date(rsPlan.getDate("reg_date"));
+
+                                                                        // plan Apr
+
+                                                                        SupervisorPlan supervisorPlanApr = new SupervisorPlan();
+
+                                                                        supervisorPlanApr.setLoan(loan);
+                                                                        supervisorPlanApr.setPrincipal(rsPlan.getDouble("m04_main"));
+                                                                        supervisorPlanApr.setInterest(rsPlan.getDouble("m04_percent"));
+                                                                        supervisorPlanApr.setPenalty(rsPlan.getDouble("m04_penalty"));
+                                                                        supervisorPlanApr.setFee((double)0);
+                                                                        supervisorPlanApr.setAmount(rsPlan.getDouble("m04_main")+rsPlan.getDouble("m04_percent")+rsPlan.getDouble("m04_penalty"));
+                                                                        supervisorPlanApr.setDescription("");
+
+
+                                                                        supervisorPlanApr.setDate(apr);
+
+                                                                        supervisorPlanApr.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanApr.setReg_date(rsPlan.getDate("reg_date"));
+
+                                                                        // plan May
+
+                                                                        SupervisorPlan supervisorPlanMay = new SupervisorPlan();
+
+                                                                        supervisorPlanMay.setLoan(loan);
+                                                                        supervisorPlanMay.setPrincipal(rsPlan.getDouble("m05_main"));
+                                                                        supervisorPlanMay.setInterest(rsPlan.getDouble("m05_percent"));
+                                                                        supervisorPlanMay.setPenalty(rsPlan.getDouble("m05_penalty"));
+                                                                        supervisorPlanMay.setFee((double)0);
+                                                                        supervisorPlanMay.setAmount(rsPlan.getDouble("m05_main")+rsPlan.getDouble("m05_percent")+rsPlan.getDouble("m05_penalty"));
+                                                                        supervisorPlanMay.setDescription("");
+
+
+                                                                        supervisorPlanMay.setDate(may);
+
+                                                                        supervisorPlanMay.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanMay.setReg_date(rsPlan.getDate("reg_date"));
+
+
+
+
+                                                                        // plan jun
+
+                                                                        SupervisorPlan supervisorPlanJun = new SupervisorPlan();
+
+                                                                        supervisorPlanJun.setLoan(loan);
+                                                                        supervisorPlanJun.setPrincipal(rsPlan.getDouble("m06_main"));
+                                                                        supervisorPlanJun.setInterest(rsPlan.getDouble("m06_percent"));
+                                                                        supervisorPlanJun.setPenalty(rsPlan.getDouble("m06_penalty"));
+                                                                        supervisorPlanJun.setFee((double)0);
+                                                                        supervisorPlanJun.setAmount(rsPlan.getDouble("m06_main")+rsPlan.getDouble("m06_percent")+rsPlan.getDouble("m06_penalty"));
+                                                                        supervisorPlanJun.setDescription("");
+
+
+                                                                        supervisorPlanJun.setDate(jun);
+
+                                                                        supervisorPlanJun.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanJun.setReg_date(rsPlan.getDate("reg_date"));
+
+
+
+                                                                        // plan jul
+
+                                                                        SupervisorPlan supervisorPlanJul = new SupervisorPlan();
+
+                                                                        supervisorPlanJul.setLoan(loan);
+                                                                        supervisorPlanJul.setPrincipal(rsPlan.getDouble("m07_main"));
+                                                                        supervisorPlanJul.setInterest(rsPlan.getDouble("m07_percent"));
+                                                                        supervisorPlanJul.setPenalty(rsPlan.getDouble("m07_penalty"));
+                                                                        supervisorPlanJul.setFee((double)0);
+                                                                        supervisorPlanJul.setAmount(rsPlan.getDouble("m07_main")+rsPlan.getDouble("m07_percent")+rsPlan.getDouble("m07_penalty"));
+                                                                        supervisorPlanJul.setDescription("");
+
+
+                                                                        supervisorPlanJul.setDate(jul);
+
+                                                                        supervisorPlanJul.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanJul.setReg_date(rsPlan.getDate("reg_date"));
+
+
+                                                                        // plan aug
+
+                                                                        SupervisorPlan supervisorPlanAug = new SupervisorPlan();
+
+                                                                        supervisorPlanAug.setLoan(loan);
+                                                                        supervisorPlanAug.setPrincipal(rsPlan.getDouble("m08_main"));
+                                                                        supervisorPlanAug.setInterest(rsPlan.getDouble("m08_percent"));
+                                                                        supervisorPlanAug.setPenalty(rsPlan.getDouble("m08_penalty"));
+                                                                        supervisorPlanAug.setFee((double)0);
+                                                                        supervisorPlanAug.setAmount(rsPlan.getDouble("m08_main")+rsPlan.getDouble("m08_percent")+rsPlan.getDouble("m08_penalty"));
+                                                                        supervisorPlanAug.setDescription("");
+
+
+                                                                        supervisorPlanAug.setDate(aug);
+
+                                                                        supervisorPlanAug.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanAug.setReg_date(rsPlan.getDate("reg_date"));
+
+
+                                                                        // plan Sep
+
+                                                                        SupervisorPlan supervisorPlanSep = new SupervisorPlan();
+
+                                                                        supervisorPlanSep.setLoan(loan);
+                                                                        supervisorPlanSep.setPrincipal(rsPlan.getDouble("m09_main"));
+                                                                        supervisorPlanSep.setInterest(rsPlan.getDouble("m09_percent"));
+                                                                        supervisorPlanSep.setPenalty(rsPlan.getDouble("m09_penalty"));
+                                                                        supervisorPlanSep.setFee((double)0);
+                                                                        supervisorPlanSep.setAmount(rsPlan.getDouble("m09_main")+rsPlan.getDouble("m09_percent")+rsPlan.getDouble("m09_penalty"));
+                                                                        supervisorPlanSep.setDescription("");
+
+
+                                                                        supervisorPlanSep.setDate(sep);
+
+                                                                        supervisorPlanSep.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanSep.setReg_date(rsPlan.getDate("reg_date"));
+
+
+                                                                        // plan Oct
+
+                                                                        SupervisorPlan supervisorPlanOct = new SupervisorPlan();
+
+                                                                        supervisorPlanOct.setLoan(loan);
+                                                                        supervisorPlanOct.setPrincipal(rsPlan.getDouble("m10_main"));
+                                                                        supervisorPlanOct.setInterest(rsPlan.getDouble("m10_percent"));
+                                                                        supervisorPlanOct.setPenalty(rsPlan.getDouble("m10_penalty"));
+                                                                        supervisorPlanOct.setFee((double)0);
+                                                                        supervisorPlanOct.setAmount(rsPlan.getDouble("m10_main")+rsPlan.getDouble("m10_percent")+rsPlan.getDouble("m10_penalty"));
+                                                                        supervisorPlanOct.setDescription("");
+
+
+                                                                        supervisorPlanOct.setDate(oct);
+
+                                                                        supervisorPlanOct.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanOct.setReg_date(rsPlan.getDate("reg_date"));
+
+
+                                                                        // plan Nov
+
+                                                                        SupervisorPlan supervisorPlanNov = new SupervisorPlan();
+
+                                                                        supervisorPlanNov.setLoan(loan);
+                                                                        supervisorPlanNov.setPrincipal(rsPlan.getDouble("m11_main"));
+                                                                        supervisorPlanNov.setInterest(rsPlan.getDouble("m11_percent"));
+                                                                        supervisorPlanNov.setPenalty(rsPlan.getDouble("m11_penalty"));
+                                                                        supervisorPlanNov.setFee((double)0);
+                                                                        supervisorPlanNov.setAmount(rsPlan.getDouble("m11_main")+rsPlan.getDouble("m11_percent")+rsPlan.getDouble("m11_penalty"));
+                                                                        supervisorPlanNov.setDescription("");
+
+
+                                                                        supervisorPlanNov.setDate(nov);
+
+                                                                        supervisorPlanNov.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanNov.setReg_date(rsPlan.getDate("reg_date"));
+
+
+                                                                        // plan Dec
+
+                                                                        SupervisorPlan supervisorPlanDec = new SupervisorPlan();
+
+                                                                        supervisorPlanDec.setLoan(loan);
+                                                                        supervisorPlanDec.setPrincipal(rsPlan.getDouble("m12_main"));
+                                                                        supervisorPlanDec.setInterest(rsPlan.getDouble("m12_percent"));
+                                                                        supervisorPlanDec.setPenalty(rsPlan.getDouble("m12_penalty"));
+                                                                        supervisorPlanDec.setFee((double)0);
+                                                                        supervisorPlanDec.setAmount(rsPlan.getDouble("m12_main")+rsPlan.getDouble("m12_percent")+rsPlan.getDouble("m12_penalty"));
+                                                                        supervisorPlanDec.setDescription("");
+
+
+                                                                        supervisorPlanDec.setDate(dec);
+
+                                                                        supervisorPlanDec.setReg_by_id(rsPlan.getLong("reg_by"));
+                                                                        supervisorPlanDec.setReg_date(rsPlan.getDate("reg_date"));
+
+
+
+                                                                        if(supervisorPlanJan.getAmount()>1) this.supervisorPlanService.add(supervisorPlanJan);
+                                                                        if(supervisorPlanFeb.getAmount()>1) this.supervisorPlanService.add(supervisorPlanFeb);
+                                                                        if(supervisorPlanMar.getAmount()>1) this.supervisorPlanService.add(supervisorPlanMar);
+                                                                        if(supervisorPlanApr.getAmount()>1) this.supervisorPlanService.add(supervisorPlanApr);
+                                                                        if(supervisorPlanMay.getAmount()>1) this.supervisorPlanService.add(supervisorPlanMay);
+                                                                        if(supervisorPlanJun.getAmount()>1) this.supervisorPlanService.add(supervisorPlanJun);
+                                                                        if(supervisorPlanJul.getAmount()>1) this.supervisorPlanService.add(supervisorPlanJul);
+                                                                        if(supervisorPlanAug.getAmount()>1) this.supervisorPlanService.add(supervisorPlanAug);
+                                                                        if(supervisorPlanSep.getAmount()>1) this.supervisorPlanService.add(supervisorPlanSep);
+                                                                        if(supervisorPlanOct.getAmount()>1) this.supervisorPlanService.add(supervisorPlanOct);
+                                                                        if(supervisorPlanNov.getAmount()>1) this.supervisorPlanService.add(supervisorPlanNov);
+                                                                        if(supervisorPlanDec.getAmount()>1) this.supervisorPlanService.add(supervisorPlanDec);
+
+
+                                                                    }
+
+
+
+
+                                                                }
+
+                                                                migrationSuccess = true;
+                                                                stPlan.close();
+                                                                rsPlan.close();
+                                                            }
+                                                        }
+                                                        catch (SQLException ex)
+                                                        {
+                                                            System.out.println("Connection Failed! Check output console");
+                                                            ex.printStackTrace();
+                                                            errorList.add(" credit term error 0" + ex);
+                                                            return migrationSuccess;
+                                                        }
+
+                                                    }
+                                                    else
+                                                    {
+                                                        System.out.println("Failed to make connection!");
+                                                    }
+                                                }
+                                                catch(Exception ex)
+                                                {
+                                                    System.out.println(" Error in User migration "+ex);
+                                                    errorList.add(" credit term connection error" + ex);
+                                                }
+
+
+                                                // credit goods migration
+                                                try
+                                                {
+                                                    if (connection != null) {
+                                                        ResultSet rsCreditGoods = null;
+                                                        try
+                                                        {
+                                                            Statement stCreditGoods = connection.createStatement();
+                                                            rsCreditGoods = stCreditGoods.executeQuery("select * from credit_goods where credit_goods.credit_id = "+rsLoan.getInt("credit_id"));
+                                                            if(rsCreditGoods != null)
+                                                            {
+                                                                while (rsCreditGoods.next())
+                                                                {
+                                                                    LoanGoods loanGoods = new LoanGoods();
+
+                                                                    loanGoods.setLoan(loan);
+                                                                    loanGoods.setGoodsTypeId(rsCreditGoods.getLong("goods_type_id"));
+                                                                    loanGoods.setUnitTypeId(rsCreditGoods.getLong("quantity_type"));
+                                                                    loanGoods.setQuantity(rsCreditGoods.getDouble("quantity"));
+
+                                                                    this.loanGoodsService.add(loanGoods);
+
+                                                                }
+
+                                                                migrationSuccess = true;
+                                                                stCreditGoods.close();
+                                                                rsCreditGoods.close();
                                                             }
                                                         }
                                                         catch (SQLException ex)
