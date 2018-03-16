@@ -4,19 +4,14 @@ import kg.gov.mf.loan.admin.org.model.*;
 import kg.gov.mf.loan.admin.org.service.*;
 import kg.gov.mf.loan.admin.sys.model.User;
 import kg.gov.mf.loan.admin.sys.service.UserService;
-import kg.gov.mf.loan.manage.model.collateral.InspectionResultType;
-import kg.gov.mf.loan.manage.model.collateral.ItemType;
-import kg.gov.mf.loan.manage.model.collateral.QuantityType;
+import kg.gov.mf.loan.manage.model.collateral.*;
 import kg.gov.mf.loan.manage.model.debtor.*;
 import kg.gov.mf.loan.manage.model.loan.*;
 import kg.gov.mf.loan.manage.model.order.CreditOrder;
 import kg.gov.mf.loan.manage.model.order.CreditOrderState;
 import kg.gov.mf.loan.manage.model.order.CreditOrderType;
 import kg.gov.mf.loan.manage.model.orderterm.*;
-import kg.gov.mf.loan.manage.service.collateral.ConditionTypeService;
-import kg.gov.mf.loan.manage.service.collateral.InspectionResultTypeService;
-import kg.gov.mf.loan.manage.service.collateral.ItemTypeService;
-import kg.gov.mf.loan.manage.service.collateral.QuantityTypeService;
+import kg.gov.mf.loan.manage.service.collateral.*;
 import kg.gov.mf.loan.manage.service.debtor.DebtorService;
 import kg.gov.mf.loan.manage.service.debtor.DebtorTypeService;
 import kg.gov.mf.loan.manage.service.debtor.OrganizationFormService;
@@ -34,13 +29,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.*;
+import java.util.*;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
 
 @Transactional
 @Component
 public class Migration1Job implements Job{
+
+    @Autowired
+    CollateralAgreementService collateralAgreementService;
 
     @Autowired
     LoanGoodsService loanGoodsService;
@@ -536,6 +533,9 @@ public class Migration1Job implements Job{
 
                             this.debtorService.add(debtor);
 
+
+                            Map<Long,Loan> debtorLoans = new HashMap<Long,Loan>();
+
                             try
                             {
                                 if (connection != null) {
@@ -563,6 +563,7 @@ public class Migration1Job implements Job{
 
                                                 this.loanService.add(loan);
 
+                                                debtorLoans.put(rsLoan.getLong("id"),loan);
 
                                                 Boolean penalyLimit20 = true;
 
@@ -840,18 +841,18 @@ public class Migration1Job implements Job{
                                                                         nov.setMonth(11);
                                                                         dec.setMonth(12);
 
-                                                                        jan.setYear(rsPlan.getInt("year")-1000);
-                                                                        feb.setYear(rsPlan.getInt("year")-1000);
-                                                                        mar.setYear(rsPlan.getInt("year")-1000);
-                                                                        apr.setYear(rsPlan.getInt("year")-1000);
-                                                                        may.setYear(rsPlan.getInt("year")-1000);
-                                                                        jun.setYear(rsPlan.getInt("year")-1000);
-                                                                        jul.setYear(rsPlan.getInt("year")-1000);
-                                                                        aug.setYear(rsPlan.getInt("year")-1000);
-                                                                        sep.setYear(rsPlan.getInt("year")-1000);
-                                                                        oct.setYear(rsPlan.getInt("year")-1000);
-                                                                        nov.setYear(rsPlan.getInt("year")-1000);
-                                                                        dec.setYear(rsPlan.getInt("year")-1000);
+                                                                        jan.setYear(rsPlan.getInt("year")-1900);
+                                                                        feb.setYear(rsPlan.getInt("year")-1900);
+                                                                        mar.setYear(rsPlan.getInt("year")-1900);
+                                                                        apr.setYear(rsPlan.getInt("year")-1900);
+                                                                        may.setYear(rsPlan.getInt("year")-1900);
+                                                                        jun.setYear(rsPlan.getInt("year")-1900);
+                                                                        jul.setYear(rsPlan.getInt("year")-1900);
+                                                                        aug.setYear(rsPlan.getInt("year")-1900);
+                                                                        sep.setYear(rsPlan.getInt("year")-1900);
+                                                                        oct.setYear(rsPlan.getInt("year")-1900);
+                                                                        nov.setYear(rsPlan.getInt("year")-1900);
+                                                                        dec.setYear(rsPlan.getInt("year")-1900);
 
                                                                         // plan January
 
@@ -1178,7 +1179,6 @@ public class Migration1Job implements Job{
                                                     errorList.add(" credit term connection error" + ex);
                                                 }
 
-
                                             }
 
                                             migrationSuccess = true;
@@ -1207,6 +1207,228 @@ public class Migration1Job implements Job{
 
 
 
+                            // COLLATERAL MIGRATION
+
+                            try
+                            {
+                                if (connection != null) {
+                                    ResultSet rsCollateralAgreement = null;
+                                    try
+                                    {
+                                        Statement stCollateralAgreement = connection.createStatement();
+                                        rsCollateralAgreement = stCollateralAgreement.executeQuery("select * from deposit_contract\n" +
+                                                "where deposit_contract.id in\n" +
+                                                "      ( select credit_deposit.deposit_id from credit_deposit,credit where credit_deposit.credit_id = credit.id and credit.person_id = "+rs.getInt("person_id")+")");
+                                        if(rsCollateralAgreement != null)
+                                        {
+                                            while (rsCollateralAgreement.next())
+                                            {
+
+                                                CollateralAgreement collateralAgreement = new CollateralAgreement();
+
+                                                Owner guarantor = new Owner();
+                                                guarantor.setOwnerType(debtor.getOwner().getOwnerType());
+                                                guarantor.setName(debtor.getOwner().getName());
+                                                guarantor.setEntityId(debtor.getOwner().getEntityId());
+
+
+                                                collateralAgreement.setOwner(guarantor);
+
+                                                if(rsCollateralAgreement.getDate("official_reg_date")!=null)
+                                                {
+                                                    collateralAgreement.setAgreementDate(rsCollateralAgreement.getDate("official_reg_date"));
+                                                    collateralAgreement.setNotaryOfficeRegDate(rsCollateralAgreement.getDate("official_reg_date"));
+                                                }
+
+                                                collateralAgreement.setAgreementNumber(rsCollateralAgreement.getString("official_reg_number"));
+                                                collateralAgreement.setNotaryOfficeRegNumber(rsCollateralAgreement.getString("official_reg_number"));
+
+                                                if(rsCollateralAgreement.getDate("arest_date")!=null)
+                                                    collateralAgreement.setArrestRegDate(rsCollateralAgreement.getDate("arest_date"));
+
+                                                collateralAgreement.setArrestRegNumber(rsCollateralAgreement.getString("arest_number"));
+
+                                                if(rsCollateralAgreement.getDate("official_reg_doc_date")!=null)
+                                                    collateralAgreement.setCollateralOfficeRegDate(rsCollateralAgreement.getDate("official_reg_doc_date"));
+
+                                                if(rsCollateralAgreement.getString("official_reg_doc_number")!=null)
+                                                collateralAgreement.setCollateralOfficeRegNumber(rsCollateralAgreement.getString("official_reg_doc_number"));
+                                                else collateralAgreement.setCollateralOfficeRegNumber("");
+
+
+
+
+                                                // collateral loan
+                                                Set<Loan> collateralAgreementLoans = new HashSet<Loan>();
+
+                                                try
+                                                {
+                                                    if (connection != null) {
+                                                        ResultSet rsCollateralAgreementLoan = null;
+                                                        try
+                                                        {
+                                                            Statement stCollateralAgreementLoan = connection.createStatement();
+                                                            rsCollateralAgreementLoan = stCollateralAgreementLoan.executeQuery("select credit_id from credit_deposit where credit_deposit.deposit_id ="+rsCollateralAgreement.getInt("id"));
+                                                            if(rsCollateralAgreementLoan != null)
+                                                            {
+                                                                while (rsCollateralAgreementLoan.next())
+                                                                {
+
+                                                                    Long creditId = rsCollateralAgreementLoan.getLong("credit_id");
+
+                                                                    if(creditId>0)
+                                                                    {
+                                                                        Loan collateralAgreementLoan = debtorLoans.get(creditId);
+
+                                                                        collateralAgreementLoans.add(collateralAgreementLoan);
+
+                                                                    }
+
+
+                                                                }
+
+                                                                stCollateralAgreementLoan.close();
+                                                                rsCollateralAgreementLoan.close();
+                                                            }
+                                                        }
+                                                        catch (SQLException ex)
+                                                        {
+                                                            System.out.println("Connection Failed! Check output console");
+                                                            ex.printStackTrace();
+                                                            errorList.add(" credit term error 0" + ex);
+                                                            return migrationSuccess;
+                                                        }
+
+                                                    }
+                                                    else
+                                                    {
+                                                        System.out.println("Failed to make connection!");
+                                                    }
+                                                }
+                                                catch(Exception ex)
+                                                {
+                                                    System.out.println(" Error in User migration "+ex);
+                                                    errorList.add(" credit term connection error" + ex);
+                                                }
+
+
+                                                // collateral item migration
+
+                                                Set<CollateralItem> collateralItems = new HashSet<CollateralItem>();
+                                                try
+                                                {
+                                                    if (connection != null) {
+                                                        ResultSet rsCollateralItem = null;
+                                                        try
+                                                        {
+                                                            Statement stCollateralItem = connection.createStatement();
+                                                            rsCollateralItem = stCollateralItem.executeQuery("select * from deposit_goods,deposit_goods_details, deposit_goods_type where " +
+                                                                    " deposit_goods.id = deposit_goods_type.deposit_goods_id and " +
+                                                                    " deposit_goods.id = deposit_goods_details.deposit_id and " +
+                                                                    " deposit_goods.contract_id = "+rsCollateralAgreement.getInt("id"));
+                                                            if(rsCollateralItem != null)
+                                                            {
+                                                                while (rsCollateralItem.next())
+                                                                {
+
+                                                                    CollateralItem collateralItem = new CollateralItem();
+
+                                                                    collateralItem.setCollateralAgreement(collateralAgreement);
+
+                                                                    collateralItem.setName(rsCollateralItem.getString("deposit_name"));
+                                                                    collateralItem.setQuantity(rsCollateralItem.getDouble("quantity"));
+                                                                    collateralItem.setCollateralValue(rsCollateralItem.getDouble("cost"));
+                                                                    collateralItem.setDescription("");
+
+                                                                    collateralItem.setRisk_rate(rsCollateralItem.getDouble("risk_rate"));
+                                                                    collateralItem.setDemand_rate(rsCollateralItem.getDouble("demand_rate"));
+                                                                    collateralItem.setEstimatedValue(rsCollateralItem.getDouble("cost")*rsCollateralItem.getDouble("risk_rate")*rsCollateralItem.getDouble("demand_rate"));
+
+                                                                    collateralItem.setItemType(this.itemTypeService.getById((long)rsCollateralItem.getLong("deposit_type")));
+                                                                    collateralItem.setQuantityType(this.quantityTypeService.getById((long)rsCollateralItem.getLong("quantity_type")));
+
+                                                                    CollateralItemDetails collateralItemDetails = new CollateralItemDetails();
+                                                                    collateralItemDetails.setDetails1(rsCollateralItem.getString("goods_details1"));
+                                                                    collateralItemDetails.setDetails2(rsCollateralItem.getString("goods_details2"));
+                                                                    collateralItemDetails.setDetails3(rsCollateralItem.getString("goods_details3"));
+                                                                    collateralItemDetails.setDetails4(rsCollateralItem.getString("goods_details4"));
+                                                                    collateralItemDetails.setDetails5(rsCollateralItem.getString("goods_details5"));
+                                                                    collateralItemDetails.setDetails6(rsCollateralItem.getString("details"));
+                                                                    collateralItemDetails.setExplDate(rsCollateralItem.getDate("expl_date"));
+                                                                    collateralItemDetails.setProdDate(rsCollateralItem.getDate("prod_date"));
+                                                                    collateralItemDetails.setDocument(rsCollateralItem.getString("document"));
+                                                                    collateralItemDetails.setArrest_by((long)rsCollateralItem.getInt("arested_by"));
+                                                                    collateralItemDetails.setIncomplete_reason(rsCollateralItem.getString("incomplete_reason"));
+                                                                    collateralItemDetails.setGoods_type(rsCollateralItem.getString("goods_type"));
+                                                                    collateralItemDetails.setGoods_id(rsCollateralItem.getString("goods_id"));
+                                                                    collateralItemDetails.setGoods_address(rsCollateralItem.getString("goods_address"));
+
+                                                                    collateralItems.add(collateralItem);
+
+
+
+
+
+
+                                                                }
+
+                                                                stCollateralItem.close();
+                                                                rsCollateralItem.close();
+                                                            }
+                                                        }
+                                                        catch (SQLException ex)
+                                                        {
+                                                            System.out.println("Connection Failed! Check output console");
+                                                            ex.printStackTrace();
+                                                            errorList.add(" credit term error 0" + ex);
+                                                            return migrationSuccess;
+                                                        }
+
+                                                    }
+                                                    else
+                                                    {
+                                                        System.out.println("Failed to make connection!");
+                                                    }
+                                                }
+                                                catch(Exception ex)
+                                                {
+                                                    System.out.println(" Error in User migration "+ex);
+                                                    errorList.add(" credit term connection error" + ex);
+                                                }
+
+                                                if(collateralAgreementLoans.size()>0)
+                                                    collateralAgreement.setLoans(collateralAgreementLoans);
+
+                                                if(collateralItems.size()>0)
+                                                    collateralAgreement.setCollateralItems(collateralItems);
+
+                                                this.collateralAgreementService.add(collateralAgreement);
+                                            }
+
+                                            migrationSuccess = true;
+                                            stCollateralAgreement.close();
+                                            rsCollateralAgreement.close();
+                                        }
+                                    }
+                                    catch (SQLException ex)
+                                    {
+                                        System.out.println("Connection Failed! Check output console");
+                                        ex.printStackTrace();
+                                        errorList.add(" credit term error 0" + ex);
+                                        return migrationSuccess;
+                                    }
+
+                                }
+                                else
+                                {
+                                    System.out.println("Failed to make connection!");
+                                }
+                            }
+                            catch(Exception ex)
+                            {
+                                System.out.println(" Error in User migration "+ex);
+                                errorList.add(" credit term connection error" + ex);
+                            }
 
 
 
