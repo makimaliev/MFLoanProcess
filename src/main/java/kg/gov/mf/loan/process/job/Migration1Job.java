@@ -5,6 +5,7 @@ import kg.gov.mf.loan.admin.org.service.*;
 import kg.gov.mf.loan.admin.sys.model.User;
 import kg.gov.mf.loan.admin.sys.service.UserService;
 import kg.gov.mf.loan.manage.model.collateral.*;
+import kg.gov.mf.loan.manage.model.collection.*;
 import kg.gov.mf.loan.manage.model.debtor.*;
 import kg.gov.mf.loan.manage.model.loan.*;
 import kg.gov.mf.loan.manage.model.order.CreditOrder;
@@ -12,6 +13,7 @@ import kg.gov.mf.loan.manage.model.order.CreditOrderState;
 import kg.gov.mf.loan.manage.model.order.CreditOrderType;
 import kg.gov.mf.loan.manage.model.orderterm.*;
 import kg.gov.mf.loan.manage.service.collateral.*;
+import kg.gov.mf.loan.manage.service.collection.*;
 import kg.gov.mf.loan.manage.service.debtor.DebtorService;
 import kg.gov.mf.loan.manage.service.debtor.DebtorTypeService;
 import kg.gov.mf.loan.manage.service.debtor.OrganizationFormService;
@@ -35,6 +37,51 @@ import java.util.Date;
 @Transactional
 @Component
 public class Migration1Job implements Job{
+
+
+
+    @Autowired
+    PhaseDetailsService phaseDetailsService;
+
+
+    @Autowired
+    CollateralItemInspectionResultService collateralItemInspectionResultService;
+
+    @Autowired
+    CollateralItemDetailsService collateralItemDetailsService;
+
+    @Autowired
+    CollateralItemArrestFreeService collateralItemArrestFreeService;
+
+    @Autowired
+    CollectionProcedureService collectionProcedureService;
+
+    @Autowired
+    CollectionPhaseService collectionPhaseService;
+
+    @Autowired
+    CollectionEventService collectionEventService;
+
+
+    @Autowired
+    PhaseTypeService phaseTypeService;
+
+    @Autowired
+    PhaseStatusService phaseStatusService;
+
+    @Autowired
+    ProcedureStatusService procedureStatusService;
+
+    @Autowired
+    ProcedureTypeService procedureTypeService;
+
+    @Autowired
+    EventTypeService eventTypeService;
+
+    @Autowired
+    EventStatusService eventStatusService;
+
+
 
     @Autowired
     CollateralAgreementService collateralAgreementService;
@@ -164,135 +211,196 @@ public class Migration1Job implements Job{
 
     Set<String> errorList = new HashSet<String>();
 
+    Map<Long,OrgForm> organizationFormMap = new HashMap<Long,OrgForm>();
+
+    Map<Long,Region> regionMap = new HashMap<Long,Region>();
+    Map<Long,District> districtMap = new HashMap<Long,District>();
+    Map<Long,Aokmotu> aokmotuMap = new HashMap<Long,Aokmotu>();
+    Map<Long,Village> villageMap = new HashMap<Long,Village>();
+
+    Map<Long,IdentityDocType> identityDocTypeMap = new HashMap<Long,IdentityDocType>();
+    Map<Long,IdentityDocGivenBy> identityDocGivenByMap = new HashMap<Long,IdentityDocGivenBy>();
+    Map<Long,OrderTermFund> fundMap = new HashMap<Long,OrderTermFund>();
+    Map<Long,OrderTermCurrency> currencyMap = new HashMap<Long,OrderTermCurrency>();
+
+    Map<Long,OrderTermDaysMethod> daysMethodMap = new HashMap<Long,OrderTermDaysMethod>();
+
+    Map<Long,OrderTermFloatingRateType> rateTypeMap = new HashMap<Long,OrderTermFloatingRateType>();
+
+    Map<Long,DebtorType> debtorTypeMap = new HashMap<Long,DebtorType>();
+    Map<Long,LoanType> loanTypeMap = new HashMap<Long,LoanType>();
+    Map<Long,ItemType> itemTypeMap = new HashMap<Long,ItemType>();
+    Map<Long,QuantityType> quantityTypeMap = new HashMap<Long,QuantityType>();
+    Map<Long,PaymentType> paymentTypeMap = new HashMap<Long,PaymentType>();
+
+    Map<Long,InspectionResultType> inspectionResultTypeMap = new HashMap<Long,InspectionResultType>();
+    Map<Long,LoanState> loanStateMap = new HashMap<Long,LoanState>();
+    Map<Long,WorkSector> workSectorMap = new HashMap<Long,WorkSector>();
+
+    Map<Long,CreditOrder> crditOrderMap = new HashMap<Long,CreditOrder>();
+
+
+    Map<Long,PhaseType> phaseTypeMap = new HashMap<Long,PhaseType>();
+    Map<Long,PhaseStatus> phaseStatusMap = new HashMap<Long,PhaseStatus>();
+    Map<Long,ProcedureType> procedureTypeMap = new HashMap<Long,ProcedureType>();
+    Map<Long,ProcedureStatus> procedureStatusMap = new HashMap<Long,ProcedureStatus>();
+
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
 
         Connection connection = this.getSourceConnection();
 
+        boolean done = true;
 
-
-        boolean done = false;
+        boolean inProcess = false;
 
         // DONE
 
-        boolean orgFormMigrationDone = done;
+        boolean orgFormMigrationDone = inProcess;
         if(!orgFormMigrationDone) orgFormMigrationDone = this.orgFormMigrate(connection);
 
-        boolean regionMigrationDone = done;
+        boolean regionMigrationDone = inProcess;
         if(!regionMigrationDone) regionMigrationDone = this.regionMigrate(connection);
 
-        boolean districtMigrationDone = done;
+        boolean districtMigrationDone = inProcess;
         if(!districtMigrationDone) districtMigrationDone = this.districtMigrate(connection);
 
 
-        boolean aokmotuMigrationDone = done;
+        boolean aokmotuMigrationDone = inProcess;
         if(!aokmotuMigrationDone) aokmotuMigrationDone = this.aokmotuMigrate(connection);
 
-        boolean villageMigrationDone = done;
+        boolean villageMigrationDone = inProcess;
         if(!villageMigrationDone) villageMigrationDone = this.villageMigrate(connection);
 
-        boolean idDocTypeMigrationDone = done;
+        boolean idDocTypeMigrationDone = inProcess;
         if(!idDocTypeMigrationDone) idDocTypeMigrationDone = this.idDocTypeMigrate(connection);
 
-        boolean idDocGivenByMigrationDone = done;
+        boolean idDocGivenByMigrationDone = inProcess;
         if(!idDocGivenByMigrationDone) idDocGivenByMigrationDone = this.idDocGivenByMigrate(connection); // CREATE NEW
 
-        boolean gaubkMigrationDone = done;
+        boolean gaubkMigrationDone = inProcess;
         if(!gaubkMigrationDone) gaubkMigrationDone = this.gaubkMigrate(connection); // CREATE NEW
 
-        boolean departmentMigrationDone = done;
+        boolean departmentMigrationDone = inProcess;
         if(!departmentMigrationDone) departmentMigrationDone = this.departmentMigrate(connection);
 
-        boolean positionMigrationDone = done;
+        boolean positionMigrationDone = inProcess;
         if(!positionMigrationDone) positionMigrationDone = this.positionMigrate(connection);
 
-       boolean userMigrationDone = done;
+       boolean userMigrationDone = inProcess;
         if(!userMigrationDone) userMigrationDone = this.migrateUsers(connection);
 
-        boolean orderStateMigrationDone = done;
+        boolean orderStateMigrationDone = inProcess;
         if(!orderStateMigrationDone) orderStateMigrationDone = this.orderStateMigrate(connection);
 
-        boolean orderTypeMigrationDone = done;
+        boolean orderTypeMigrationDone = inProcess;
         if(!orderTypeMigrationDone) orderTypeMigrationDone = this.orderTypeMigrate(connection);
 
-        boolean loanFundMigrationDone = done;
+        boolean loanFundMigrationDone = inProcess;
         if(!loanFundMigrationDone) loanFundMigrationDone = this.loanFundMigrate(connection);
 
-        boolean loanCurrencyMigrationDone = done;
+        boolean loanCurrencyMigrationDone = inProcess;
         if(!loanCurrencyMigrationDone) loanCurrencyMigrationDone = this.loanCurrencyMigrate(connection);
 
-        boolean daysCalcMethodMigrationDone = done;
+        boolean daysCalcMethodMigrationDone = inProcess;
         if(!daysCalcMethodMigrationDone) daysCalcMethodMigrationDone = this.daysCalcMethodMigrate(connection);
 
-        boolean rateTypeMigrationDone = done;
+        boolean rateTypeMigrationDone = inProcess;
         if(!rateTypeMigrationDone) rateTypeMigrationDone = this.rateTypeMigrate(connection);
 
-        boolean debtorTypeMigrationDone = done;
+        boolean debtorTypeMigrationDone = inProcess;
         if(!debtorTypeMigrationDone) debtorTypeMigrationDone = this.debtorTypeMigrate(connection);
 
-        boolean loanTypeMigrationDone = done;
+        boolean loanTypeMigrationDone = inProcess;
         if(!loanTypeMigrationDone) loanTypeMigrationDone = this.loanTypeMigrate(connection);
 
-        boolean itemTypeMigrationDone = done;
+        boolean itemTypeMigrationDone = inProcess;
         if(!itemTypeMigrationDone) itemTypeMigrationDone = this.itemTypeMigrate(connection);
 
-        boolean quantityTypeMigrationDone = done;
+        boolean quantityTypeMigrationDone = inProcess;
         if(!quantityTypeMigrationDone) quantityTypeMigrationDone = this.quantityTypeMigrate(connection);
 
-        boolean paymentTypeMigrationDone = done;
+        boolean paymentTypeMigrationDone = inProcess;
         if(!paymentTypeMigrationDone) paymentTypeMigrationDone = this.paymentTypeMigrate(connection);
 
-        boolean inspectionResultTypeMigrationDone = done;
+        boolean inspectionResultTypeMigrationDone = inProcess;
         if(!inspectionResultTypeMigrationDone) inspectionResultTypeMigrationDone = this.inspectionResultTypeMigrate(connection);
 
-        boolean loanStatusMigrationDone = done;
+        boolean loanStatusMigrationDone = inProcess;
         if(!loanStatusMigrationDone) loanStatusMigrationDone = this.loanStatusMigrate(connection);
 
-        boolean workSectorMigrationDone = done;
+        boolean workSectorMigrationDone = inProcess;
         if(!workSectorMigrationDone) workSectorMigrationDone = this.workSectorMigrate(connection);
 
-        boolean creditOrderMigrationDone = done;
+        boolean creditOrderMigrationDone = inProcess;
         if(!creditOrderMigrationDone) creditOrderMigrationDone = this.creditOrderMigrate(connection);
 
-        boolean debtorMigrationDone = done;
+        boolean collectionMigrateDone = inProcess;
+        if(!collectionMigrateDone) collectionMigrateDone = this.collectionPhaseTypeMigrate(connection);
+
+        boolean debtorMigrationDone = inProcess;
         if(!debtorMigrationDone) debtorMigrationDone = this.debtorMigrate(connection);
-
-
-        /*
-        boolean rateTypeMigrationDone = false;
-        if(!rateTypeMigrationDone) rateTypeMigrationDone = this.rateTypeMigrate(connection);
-        */
-
-
-
-
-        System.out.println(" OrgForm migration process == "+orgFormMigrationDone);
-        System.out.println(" Region migration process == "+regionMigrationDone);
-        System.out.println(" District migration process == "+districtMigrationDone);
-        System.out.println(" Aokmotu migration process == "+aokmotuMigrationDone);
-        System.out.println(" Village migration process == "+villageMigrationDone);
-        System.out.println(" ID doc type migration process == "+idDocTypeMigrationDone);
-        System.out.println(" GAUBK migration process == "+gaubkMigrationDone);
-        System.out.println(" Department migration process == "+departmentMigrationDone);
-        System.out.println(" Position migration process == "+positionMigrationDone);
-        System.out.println(" User migration process == "+userMigrationDone);
-
-
-        System.out.println(" Debtor Type migration process == "+debtorTypeMigrationDone);
-        System.out.println(" Loan Type migration process == "+loanTypeMigrationDone);
-        System.out.println(" Item Type migration process == "+itemTypeMigrationDone);
-        System.out.println(" Quantity Type migration process == "+quantityTypeMigrationDone);
-        System.out.println(" Payment Type migration process == "+paymentTypeMigrationDone);
-        System.out.println(" Inspection Result Type migration process == "+inspectionResultTypeMigrationDone);
-        System.out.println(" Loan State migration process == "+loanStatusMigrationDone);
-        System.out.println(" WorkSector migration process == "+workSectorMigrationDone);
-
-        System.out.println(" Credit Order migration process == "+creditOrderMigrationDone);
 
         for (String text: errorList)
         {
             System.out.println(text);
         }
+
+
+//        System.out.println(" Организационные формы :");
+//        for (Map.Entry<Long, OrgForm> entry : organizationFormMap.entrySet()) {
+//            Long key = entry.getKey();
+//            OrgForm value = entry.getValue();
+//
+//            System.out.println(" ID == "+key+" == "+value.getName());
+//
+//        }
+//
+//
+//        System.out.println(" Области :");
+//        for (Map.Entry<Long, Region> entry : regionMap.entrySet()) {
+//            Long key = entry.getKey();
+//            Region value = entry.getValue();
+//
+//            System.out.println(" ID == "+key+" == "+value.getName());
+//
+//        }
+//
+//
+//
+//        System.out.println(" Районы :");
+//        for (Map.Entry<Long, District> entry : districtMap.entrySet()) {
+//            Long key = entry.getKey();
+//            District value = entry.getValue();
+//
+//            System.out.println(" ID == "+key+" == "+value.getName()+" == "+value.getRegion().getName());
+//
+//        }
+//
+//
+//        System.out.println(" Айыл окмоту :");
+//        for (Map.Entry<Long, Aokmotu> entry : aokmotuMap.entrySet()) {
+//            Long key = entry.getKey();
+//            Aokmotu value = entry.getValue();
+//
+//            System.out.println(" ID == "+key+" == "+value.getName()+" == "+value.getDistrict().getName());
+//
+//        }
+//
+//        System.out.println(" Село :");
+//        for (Map.Entry<Long, Village> entry : villageMap.entrySet()) {
+//            Long key = entry.getKey();
+//            Village value = entry.getValue();
+//
+//            System.out.println(" ID == "+key+" == "+value.getName()+" == "+value.getAokmotu().getName());
+//
+//        }
+
+
+
+
+
+
 
     }
 
@@ -301,6 +409,14 @@ public class Migration1Job implements Job{
     {
         boolean migrationSuccess = false;
 
+        OrganizationForm organizationForm = this.organizationFormService.getById((long)1);
+
+        InstallmentState installmentState = this.installmentStateService.getById((long)1);
+
+        OrderTermTransactionOrder transactionOrder1 = this.orderTermTransactionOrderService.getById((long)1);
+        OrderTermTransactionOrder transactionOrder3 = this.orderTermTransactionOrderService.getById((long)1);
+
+        OrderTermRatePeriod ratePeriod = this.orderTermRatePeriodService.getById((long)1);
 
         try
         {
@@ -319,7 +435,7 @@ public class Migration1Job implements Job{
                             " where person.id = person_details.person_id AND aokmotu.region = address.region_code and address.district_code = aokmotu.district and address.a_okmotu_code = aokmotu.aokmotu AND " +
                             " selo.region = address.region_code and address.district_code = selo.district and address.a_okmotu_code = selo.aokmotu and address.selo = selo.selo_code AND \n" +
                             "      address.user_id = person.id AND address.contact_type = 2 AND\n" +
-                            "      phone.user_id = person.id and phone.contact_type = 2 order by person.id  LIMIT  50 OFFSET 300");
+                            "      phone.user_id = person.id and phone.contact_type = 2 order by person.id limit 100 OFFSET 1000");
                     if(rs != null)
                     {
                         while (rs.next())
@@ -335,7 +451,7 @@ public class Migration1Job implements Job{
                             if(rs.getInt("region")==0)
                                 errorList.add(" debtor region error "+rs.getInt("person_id"));
                             else
-                                region = this.regionService.findByCode(String.valueOf(rs.getInt("region")));
+                                region = regionMap.get(rs.getInt("region"));
 
                             address.setRegion(region);
 
@@ -344,19 +460,20 @@ public class Migration1Job implements Job{
                             if(rs.getInt("district")==0)
                                 errorList.add(" debtor district error "+rs.getInt("person_id"));
                             else
-                                district = this.districtService.findById(rs.getInt("district")==0 ? 1 : rs.getInt("district"));
+                                district = districtMap.get(rs.getInt("district"));
 
                             address.setDistrict(district);
 
                             Aokmotu aokmotu = new Aokmotu();
                             if(rs.getInt("aokmotu_id")>0)
                             {
-                                aokmotu = this.aokmotuService.findById(rs.getInt("aokmotu_id"));
+                                aokmotu = aokmotuMap.get(rs.getInt("aokmotu_id"));
                                 address.setAokmotu(aokmotu);
                             }
                             else
                             {
-                                aokmotu = this.aokmotuService.findById(1);
+                                errorList.add(" aokmotu is 0 "+rs.getLong("person_id"));
+                                aokmotu = aokmotuMap.get((long)1);
                                 address.setAokmotu(aokmotu);
                             }
 
@@ -364,12 +481,12 @@ public class Migration1Job implements Job{
                             Village village = new Village();
                             if(rs.getInt("selo_id")>0)
                             {
-                                village = this.villageService.findById(rs.getInt("selo_id"));
+                                village = villageMap.get(rs.getInt("selo_id"));
                                 address.setVillage(village);
                             }
                             else
                             {
-                                village = this.villageService.findById(1);
+                                village = villageMap.get((long)1);
                                 address.setVillage(village);
                             }
 
@@ -383,6 +500,7 @@ public class Migration1Job implements Job{
 
                             //contact
                             // contact
+                            //contact
                             Contact contact = new Contact();
 
                             if(!(rs.getString("number")=="" || rs.getString("number")==null))
@@ -398,11 +516,11 @@ public class Migration1Job implements Job{
 
                             if(rs.getShort("document_type")==1)
                             {
-                                identityDoc.setIdentityDocGivenBy(identityDocGivenByService.findById(1)); //MKK
+                                identityDoc.setIdentityDocGivenBy(identityDocGivenByMap.get((long)1)); //MKK
                             }
                             else
                             {
-                                identityDoc.setIdentityDocGivenBy(identityDocGivenByService.findById(2)); //MinJust
+                                identityDoc.setIdentityDocGivenBy(identityDocGivenByMap.get((long)2)); //MinJust
                                 isPerson = false;
                             }
 
@@ -414,10 +532,12 @@ public class Migration1Job implements Job{
                                     rs.getString("title").contains("кызы")
                                     )
                             {
-                                if(!isPerson && rs.getShort("document_type")!=1) isPerson = false;
+                                if(!rs.getString("title").contains("\"")) isPerson = true;
+
+
                             }
 
-                            identityDoc.setIdentityDocType(identityDocTypeService.findById(rs.getShort("document_type"))); // Passport
+                            identityDoc.setIdentityDocType(identityDocTypeMap.get(rs.getLong("document_type"))); // Passport
 
 
                             identityDoc.setEnabled(true);
@@ -470,7 +590,7 @@ public class Migration1Job implements Job{
                                 organization.setAddress(address);
                                 organization.setContact(contact);
                                 organization.setIdentityDoc(identityDoc);
-                                organization.setOrgForm(this.orgFormService.findById(2));
+                                organization.setOrgForm(organizationFormMap.get((long)2));
                                 organization.setEnabled(true);
                                 organization.setDescription(String.valueOf(rs.getLong("person_id")));
 
@@ -527,9 +647,9 @@ public class Migration1Job implements Job{
 
                             debtor.setName(owner.getName());
                             debtor.setOwner(owner);
-                            debtor.setDebtorType(this.debtorTypeService.getById((long)1));
-                            debtor.setOrgForm(this.organizationFormService.getById((long)1));
-                            debtor.setWorkSector(this.workSectorService.getById((long)rs.getInt("work_sector")));
+                            debtor.setDebtorType(debtorTypeMap.get((long)1));
+                            debtor.setOrgForm(organizationForm);
+                            debtor.setWorkSector(workSectorMap.get((long)rs.getInt("work_sector")));
 
                             this.debtorService.add(debtor);
 
@@ -551,15 +671,14 @@ public class Migration1Job implements Job{
                                                 // loan
                                                 Loan loan = new Loan();
                                                 loan.setAmount(rsLoan.getDouble("cost"));
-                                                loan.setCreditOrder(this.creditOrderService.getById((long)rsLoan.getInt("credit_order_id")));
+                                                loan.setCreditOrder(crditOrderMap.get((long)rsLoan.getInt("credit_order_id")));
                                                 loan.setSupervisorId(rsLoan.getLong("curator"));
-                                                loan.setLoanType(this.loanTypeService.getById((long)rsLoan.getInt("credit_type")));
-                                                loan.setCurrency(this.orderTermCurrencyService.getById((long)rsLoan.getInt("currency")));
+                                                loan.setLoanType(loanTypeMap.get((long)rsLoan.getInt("credit_type")));
+                                                loan.setCurrency(currencyMap.get((long)rsLoan.getInt("currency")));
                                                 loan.setRegDate(rsLoan.getDate("date"));
                                                 loan.setRegNumber(rsLoan.getString("number"));
                                                 loan.setDebtor(debtor);
-                                                loan.setLoanState(this.loanStateService.getById((long)rsLoan.getInt("status")));
-
+                                                loan.setLoanState(loanStateMap.get((long)rsLoan.getInt("status")));
 
                                                 this.loanService.add(loan);
 
@@ -588,7 +707,7 @@ public class Migration1Job implements Job{
                                                                     paymentSchedule.setCollectedInterestPayment(rsSchedule.getDouble("collected_debt_percent"));
                                                                     paymentSchedule.setCollectedPenaltyPayment(rsSchedule.getDouble("collected_debt_penalty"));
                                                                     paymentSchedule.setExpectedDate(rsSchedule.getDate("date"));
-                                                                    paymentSchedule.setInstallmentState(this.installmentStateService.getById((long)1));
+                                                                    paymentSchedule.setInstallmentState(installmentState);
 
                                                                     this.paymentScheduleService.add(paymentSchedule);
 
@@ -615,8 +734,7 @@ public class Migration1Job implements Job{
                                                 }
                                                 catch(Exception ex)
                                                 {
-                                                    System.out.println(" Error in User migration "+ex);
-                                                    errorList.add(" scehdule connection error" + ex);
+                                                    errorList.add(" scehdule error" + ex+ " loan id == " +loan.getId());
                                                 }
 
                                                 // credit term migration
@@ -646,41 +764,41 @@ public class Migration1Job implements Job{
                                                                     term.setPenaltyOnInterestOverdueRateValue(rsTerm.getDouble("penalty_percent"));
 
                                                                     if(rsTerm.getInt("method_days_period")<3)
-                                                                        term.setDaysInMonthMethod((OrderTermDaysMethod)this.orderTermDaysMethodService.getById((long)rsTerm.getInt("method_days_period")));
+                                                                        term.setDaysInMonthMethod((OrderTermDaysMethod)daysMethodMap.get((long)rsTerm.getInt("method_days_period")));
                                                                     else
                                                                         {
-                                                                            term.setDaysInMonthMethod((OrderTermDaysMethod)this.orderTermDaysMethodService.getById((long)2));
+                                                                            term.setDaysInMonthMethod((OrderTermDaysMethod)daysMethodMap.get((long)2));
                                                                             errorList.add(" credit term error 1 "+loan.getId());
                                                                         }
 
                                                                      if(rsTerm.getInt("method_days")<3)
-                                                                        term.setDaysInYearMethod((OrderTermDaysMethod)this.orderTermDaysMethodService.getById((long)rsTerm.getInt("method_days")));
+                                                                        term.setDaysInYearMethod((OrderTermDaysMethod)daysMethodMap.get((long)rsTerm.getInt("method_days")));
                                                                     else
                                                                      {
-                                                                         term.setDaysInYearMethod((OrderTermDaysMethod)this.orderTermDaysMethodService.getById((long)2));
+                                                                         term.setDaysInYearMethod((OrderTermDaysMethod)daysMethodMap.get((long)2));
                                                                          errorList.add(" credit term error 2 "+loan.getId()+" "+rsTerm.getInt("method_days"));
                                                                      }
 
                                                                      if(rsTerm.getInt("rate_type")>0)
-                                                                        term.setFloatingRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)rsTerm.getInt("rate_type")));
-                                                                     else term.setFloatingRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)2));
+                                                                        term.setFloatingRateType((OrderTermFloatingRateType)rateTypeMap.get((long)rsTerm.getInt("rate_type")));
+                                                                     else term.setFloatingRateType((OrderTermFloatingRateType)rateTypeMap.get((long)2));
 
                                                                     if(rsTerm.getInt("plus_penalty")>0)
-                                                                        term.setPenaltyOnPrincipleOverdueRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)rsTerm.getInt("plus_penalty")));
-                                                                    else term.setPenaltyOnPrincipleOverdueRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)2));
+                                                                        term.setPenaltyOnPrincipleOverdueRateType((OrderTermFloatingRateType)rateTypeMap.get((long)rsTerm.getInt("plus_penalty")));
+                                                                    else term.setPenaltyOnPrincipleOverdueRateType((OrderTermFloatingRateType)rateTypeMap.get((long)2));
 
                                                                     if(rsTerm.getInt("plus_penalty")>0)
-                                                                        term.setPenaltyOnInterestOverdueRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)rsTerm.getInt("plus_percent")));
-                                                                    else term.setPenaltyOnInterestOverdueRateType((OrderTermFloatingRateType)this.orderTermFloatingRateTypeService.getById((long)2));
+                                                                        term.setPenaltyOnInterestOverdueRateType((OrderTermFloatingRateType)rateTypeMap.get((long)rsTerm.getInt("plus_percent")));
+                                                                    else term.setPenaltyOnInterestOverdueRateType((OrderTermFloatingRateType)rateTypeMap.get((long)2));
 
                                                                     if(rsTerm.getInt("repayment_main_debt")==1)
-                                                                        term.setTransactionOrder((OrderTermTransactionOrder)this.orderTermTransactionOrderService.getById((long)1));
-                                                                    else term.setTransactionOrder((OrderTermTransactionOrder)this.orderTermTransactionOrderService.getById((long)3));
+                                                                        term.setTransactionOrder((OrderTermTransactionOrder)transactionOrder1);
+                                                                    else term.setTransactionOrder((OrderTermTransactionOrder)transactionOrder3);
 
-                                                                    term.setRatePeriod(this.orderTermRatePeriodService.getById((long)1));
+                                                                    term.setRatePeriod(ratePeriod);
 
                                                                     if(penalyLimit20)
-                                                                    term.setPenaltyLimitPercent((double)20);
+                                                                        term.setPenaltyLimitPercent((double)20);
                                                                     else term.setPenaltyLimitPercent((double)0);
 
                                                                     this.creditTermService.add(term);
@@ -708,8 +826,7 @@ public class Migration1Job implements Job{
                                                 }
                                                 catch(Exception ex)
                                                 {
-                                                    System.out.println(" Error in User migration "+ex);
-                                                    errorList.add(" credit term connection error" + ex);
+                                                    errorList.add(" credit term error" + ex + " loan id == " +loan.getId());
                                                 }
 
 
@@ -737,7 +854,7 @@ public class Migration1Job implements Job{
                                                                     payment.setPenalty(rsPayment.getDouble("penalty"));
                                                                     payment.setFee((double)0);
                                                                     payment.setTotalAmount(rsPayment.getDouble("payments_sum"));
-                                                                    payment.setPaymentType( this.paymentTypeService.getById((long)rsPayment.getInt("payment_type")));
+                                                                    payment.setPaymentType( paymentTypeMap.get((long)rsPayment.getInt("payment_type")));
 
 
                                                                     if(loan.getCurrency().getId()==1)
@@ -779,8 +896,7 @@ public class Migration1Job implements Job{
                                                 }
                                                 catch(Exception ex)
                                                 {
-                                                    System.out.println(" Error in User migration "+ex);
-                                                    errorList.add(" credit term connection error" + ex);
+                                                    errorList.add(" payment error" + ex + " loan id == " +loan.getId());
                                                 }
 
 
@@ -1125,8 +1241,7 @@ public class Migration1Job implements Job{
                                                 }
                                                 catch(Exception ex)
                                                 {
-                                                    System.out.println(" Error in User migration "+ex);
-                                                    errorList.add(" credit term connection error" + ex);
+                                                    errorList.add(" plan error" + ex+ " loan id == " +loan.getId());
                                                 }
 
 
@@ -1175,8 +1290,7 @@ public class Migration1Job implements Job{
                                                 }
                                                 catch(Exception ex)
                                                 {
-                                                    System.out.println(" Error in User migration "+ex);
-                                                    errorList.add(" credit term connection error" + ex);
+                                                    errorList.add(" goods error" + ex+ " loan id == " +loan.getId());
                                                 }
 
                                             }
@@ -1188,24 +1302,19 @@ public class Migration1Job implements Job{
                                     }
                                     catch (SQLException ex)
                                     {
-                                        System.out.println("Connection Failed! Check output console");
-                                        ex.printStackTrace();
-                                        errorList.add("loan error"+ex);
-                                        return migrationSuccess;
+                                        errorList.add("loan error "+ex+ " debtor id = "+debtor.getId());
                                     }
 
                                 }
                                 else
                                 {
-                                    System.out.println("Failed to make connection!");
+                                    errorList.add("loan error , debtor id = "+debtor.getId());
                                 }
                             }
                             catch(Exception ex)
                             {
-                                System.out.println(" Error in User migration "+ex);
+                                errorList.add("loan error1 "+ex+ " debtor id = "+debtor.getId());
                             }
-
-
 
                             // COLLATERAL MIGRATION
 
@@ -1293,10 +1402,7 @@ public class Migration1Job implements Job{
                                                         }
                                                         catch (SQLException ex)
                                                         {
-                                                            System.out.println("Connection Failed! Check output console");
-                                                            ex.printStackTrace();
-                                                            errorList.add(" credit term error 0" + ex);
-                                                            return migrationSuccess;
+                                                            errorList.add(" collateral loan error" + ex + " debtor id = "+debtor.getId());
                                                         }
 
                                                     }
@@ -1307,8 +1413,7 @@ public class Migration1Job implements Job{
                                                 }
                                                 catch(Exception ex)
                                                 {
-                                                    System.out.println(" Error in User migration "+ex);
-                                                    errorList.add(" credit term connection error" + ex);
+                                                    errorList.add(" collateral loan error" + ex + " debtor id = "+debtor.getId());
                                                 }
 
 
@@ -1344,8 +1449,8 @@ public class Migration1Job implements Job{
                                                                     collateralItem.setDemand_rate(rsCollateralItem.getDouble("demand_rate"));
                                                                     collateralItem.setEstimatedValue(rsCollateralItem.getDouble("cost")*rsCollateralItem.getDouble("risk_rate")*rsCollateralItem.getDouble("demand_rate"));
 
-                                                                    collateralItem.setItemType(this.itemTypeService.getById((long)rsCollateralItem.getLong("deposit_type")));
-                                                                    collateralItem.setQuantityType(this.quantityTypeService.getById((long)rsCollateralItem.getLong("quantity_type")));
+                                                                    collateralItem.setItemType(itemTypeMap.get((long)rsCollateralItem.getLong("deposit_type")));
+                                                                    collateralItem.setQuantityType(quantityTypeMap.get((long)rsCollateralItem.getLong("quantity_type")));
 
                                                                     CollateralItemDetails collateralItemDetails = new CollateralItemDetails();
                                                                     collateralItemDetails.setDetails1(rsCollateralItem.getString("goods_details1"));
@@ -1353,18 +1458,131 @@ public class Migration1Job implements Job{
                                                                     collateralItemDetails.setDetails3(rsCollateralItem.getString("goods_details3"));
                                                                     collateralItemDetails.setDetails4(rsCollateralItem.getString("goods_details4"));
                                                                     collateralItemDetails.setDetails5(rsCollateralItem.getString("goods_details5"));
-                                                                    collateralItemDetails.setDetails6(rsCollateralItem.getString("details"));
+
+                                                                    collateralItemDetails.setDetails6(rsCollateralItem.getString("details")==null?"":rsCollateralItem.getString("details"));
                                                                     collateralItemDetails.setExplDate(rsCollateralItem.getDate("expl_date"));
                                                                     collateralItemDetails.setProdDate(rsCollateralItem.getDate("prod_date"));
                                                                     collateralItemDetails.setDocument(rsCollateralItem.getString("document"));
                                                                     collateralItemDetails.setArrest_by((long)rsCollateralItem.getInt("arested_by"));
-                                                                    collateralItemDetails.setIncomplete_reason(rsCollateralItem.getString("incomplete_reason"));
+                                                                    collateralItemDetails.setIncomplete_reason(rsCollateralItem.getString("incomplete_reason")==null?"":rsCollateralItem.getString("incomplete_reason"));
                                                                     collateralItemDetails.setGoods_type(rsCollateralItem.getString("goods_type"));
                                                                     collateralItemDetails.setGoods_id(rsCollateralItem.getString("goods_id"));
                                                                     collateralItemDetails.setGoods_address(rsCollateralItem.getString("goods_address"));
 
-                                                                    collateralItems.add(collateralItem);
+                                                                    
+                                                                    Set<CollateralItemInspectionResult> collateralItemInspectionResults = new HashSet<CollateralItemInspectionResult>();
 
+                                                                    try
+                                                                    {
+                                                                        if (connection != null) {
+                                                                            ResultSet rsCollateralItemInspection = null;
+                                                                            try
+                                                                            {
+                                                                                Statement stCollateralItemInspection = connection.createStatement();
+                                                                                rsCollateralItemInspection = stCollateralItemInspection.executeQuery("select * from deposit_Act where " +
+                                                                                        " deposit_act.deposit_id = "+rsCollateralItem.getInt("id"));
+                                                                                if(rsCollateralItemInspection != null)
+                                                                                {
+                                                                                    while (rsCollateralItemInspection.next())
+                                                                                    {
+                                                                                        CollateralItemInspectionResult collateralItemInspectionResult = new CollateralItemInspectionResult();
+
+
+                                                                                        if(rsCollateralItemInspection.getDate("date")!=null)
+                                                                                            collateralItemInspectionResult.setOnDate(rsCollateralItemInspection.getDate("date"));
+                                                                                        else
+                                                                                            {
+                                                                                                System.out.println(" asdf " + rsCollateralItemInspection.getLong("id"));
+                                                                                            }
+                                                                                        collateralItemInspectionResult.setInspectionResultType(inspectionResultTypeMap.get(rsCollateralItemInspection.getLong("status")));
+                                                                                        collateralItemInspectionResult.setDetails(rsCollateralItemInspection.getString("details"));
+                                                                                        collateralItemInspectionResult.setCollateralItem(collateralItem);
+
+
+                                                                                        collateralItemInspectionResults.add(collateralItemInspectionResult);
+
+                                                                                    }
+
+                                                                                    stCollateralItemInspection.close();
+                                                                                    rsCollateralItemInspection.close();
+                                                                                }
+                                                                            }
+                                                                            catch (SQLException ex)
+                                                                            {
+                                                                                errorList.add(" collateral item inspection error" + ex+ " debtor id = " + debtor.getId());
+                                                                            }
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            System.out.println("Failed to make connection!");
+                                                                        }
+                                                                    }
+                                                                    catch(Exception ex)
+                                                                    {
+                                                                        errorList.add(" collateral item inspection error" + ex+ " debtor id = " + debtor.getId());
+                                                                    }
+
+
+
+                                                                    try
+                                                                    {
+                                                                        if (connection != null) {
+                                                                            ResultSet rsCollateralItemArestFree = null;
+                                                                            try
+                                                                            {
+                                                                                Statement stCollateralItemArestFree = connection.createStatement();
+                                                                                rsCollateralItemArestFree = stCollateralItemArestFree.executeQuery("select * from deposit_release_details where " +
+                                                                                        " deposit_release_details.deposit_id = "+rsCollateralItem.getInt("id"));
+                                                                                if(rsCollateralItemArestFree != null)
+                                                                                {
+                                                                                    while (rsCollateralItemArestFree.next())
+                                                                                    {
+                                                                                        CollateralItemArrestFree collateralItemArrestFree = new CollateralItemArrestFree();
+
+                                                                                        collateralItemArrestFree.setArrestFreeBy(rsCollateralItemArestFree.getLong("release_by"));
+                                                                                        collateralItemArrestFree.setCollateralItem(collateralItem);
+
+                                                                                        collateralItemArrestFree.setOnDate(rsCollateralItemArestFree.getDate("release_date"));
+
+                                                                                        String details = "";
+
+                                                                                        if(rsCollateralItemArestFree.getString("release_reason")!=null && rsCollateralItemArestFree.getString("release_reason")!="")
+                                                                                            details+=rsCollateralItemArestFree.getString("release_reason");
+
+                                                                                        if(rsCollateralItemArestFree.getString("release_details")!=null && rsCollateralItemArestFree.getString("release_details")!="")
+                                                                                            details=details+ " ( "+rsCollateralItemArestFree.getString("release_details")+" )";
+
+                                                                                        collateralItemArrestFree.setDetails(details);
+
+                                                                                        collateralItem.setCollateralItemArrestFree(collateralItemArrestFree);
+
+
+                                                                                    }
+
+                                                                                    stCollateralItemArestFree.close();
+                                                                                    rsCollateralItemArestFree.close();
+                                                                                }
+                                                                            }
+                                                                            catch (SQLException ex)
+                                                                            {
+                                                                                errorList.add(" collateral item inspection error" + ex+ " debtor id = " + debtor.getId());
+                                                                            }
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            System.out.println("Failed to make connection!");
+                                                                        }
+                                                                    }
+                                                                    catch(Exception ex)
+                                                                    {
+                                                                        errorList.add(" collateral item inspection error" + ex+ " debtor id = " + debtor.getId());
+                                                                    }
+
+                                                                    collateralItem.setCollateralItemDetails(collateralItemDetails);
+                                                                    collateralItem.setCollateralItemInspectionResults(collateralItemInspectionResults);
+
+
+                                                                    collateralItems.add(collateralItem);
 
 
 
@@ -1378,12 +1596,8 @@ public class Migration1Job implements Job{
                                                         }
                                                         catch (SQLException ex)
                                                         {
-                                                            System.out.println("Connection Failed! Check output console");
-                                                            ex.printStackTrace();
-                                                            errorList.add(" credit term error 0" + ex);
-                                                            return migrationSuccess;
+                                                            errorList.add(" collateral item error" + ex+ " debtor id = " + debtor.getId());
                                                         }
-
                                                     }
                                                     else
                                                     {
@@ -1392,8 +1606,7 @@ public class Migration1Job implements Job{
                                                 }
                                                 catch(Exception ex)
                                                 {
-                                                    System.out.println(" Error in User migration "+ex);
-                                                    errorList.add(" credit term connection error" + ex);
+                                                    errorList.add(" collateral item error" + ex+ " debtor id = " + debtor.getId());
                                                 }
 
                                                 if(collateralAgreementLoans.size()>0)
@@ -1402,7 +1615,30 @@ public class Migration1Job implements Job{
                                                 if(collateralItems.size()>0)
                                                     collateralAgreement.setCollateralItems(collateralItems);
 
-                                                this.collateralAgreementService.add(collateralAgreement);
+                                                if(collateralAgreementLoans.size()>0 && collateralItems.size()>0)
+                                                {
+                                                    this.collateralAgreementService.add(collateralAgreement);
+                                                    
+                                                    /*for(CollateralItem item :collateralAgreement.getCollateralItems())
+                                                    {
+
+                                                        this.collateralItemDetailsService.add(item.getCollateralItemDetails());
+
+                                                        for (CollateralItemInspectionResult inspection : item.getCollateralItemInspectionResults())
+                                                        {
+                                                            this.collateralItemInspectionResultService.add(inspection);
+                                                        }
+                                                    }*/
+
+
+
+                                                }
+                                                else
+                                                {
+                                                    errorList.add(" no loan or item for collateral id ="+rsCollateralAgreement.getLong("id"));
+                                                }
+
+
                                             }
 
                                             migrationSuccess = true;
@@ -1412,10 +1648,7 @@ public class Migration1Job implements Job{
                                     }
                                     catch (SQLException ex)
                                     {
-                                        System.out.println("Connection Failed! Check output console");
-                                        ex.printStackTrace();
-                                        errorList.add(" credit term error 0" + ex);
-                                        return migrationSuccess;
+                                        errorList.add(" collateral agreement error " + ex+ " debtor id = " + debtor.getId());
                                     }
 
                                 }
@@ -1426,40 +1659,180 @@ public class Migration1Job implements Job{
                             }
                             catch(Exception ex)
                             {
-                                System.out.println(" Error in User migration "+ex);
-                                errorList.add(" credit term connection error" + ex);
+                                errorList.add(" collateral agreement error " + ex+ " debtor id = " + debtor.getId());
                             }
 
 
+                            // Collection migration
+                            try
+                            {
+
+                                if (connection != null) {
+                                    ResultSet rsCollection = null;
+                                    try
+                                    {
+                                        Statement stCollection = connection.createStatement();
+                                        rsCollection = stCollection.executeQuery("select * from legal_process_state where " +
+                                                "legal_process_state.legal_process_id in ( select legal_process.id from legal_process where legal_process.person_id ="
+                                                        +rs.getInt("person_id")+") " +
+                                                " order by legal_process_state.legal_process_id, state_date");
+                                        if(rsCollection != null)
+                                        {
+
+                                            int collectionProceduteID = 0;
+
+                                            CollectionProcedure collectionProcedureCurrent = new CollectionProcedure();
+
+                                            Set<CollectionPhase> listOfPhases = new HashSet<CollectionPhase>();
+                                            Set<CollectionEvent> listOfEvents = new HashSet<CollectionEvent>();
+
+                                            Set<Loan> phaseLoans = new HashSet<Loan>();
+
+                                            while (rsCollection.next())
+                                            {
+
+                                                if(rsCollection.getLong("state")>1)
+                                                {
+                                                    if(rsCollection.getInt("legal_process_id")!=collectionProceduteID)
+                                                    {
+
+                                                        collectionProcedureCurrent.setCollectionPhases(listOfPhases);
+
+                                                        this.collectionProcedureService.add(collectionProcedureCurrent);
+
+                                                        listOfPhases.removeAll(listOfPhases);
+
+                                                    }
+                                                }
+
+                                                if(rsCollection.getLong("state")==1)
+                                                {
+                                                    collectionProcedureCurrent.setStartDate(rsCollection.getDate("state_date"));
+                                                    collectionProcedureCurrent.setProcedureType(procedureTypeMap.get((long)1));
+
+                                                    collectionProceduteID = rsCollection.getInt("legal_process_id");
+                                                }
+
+                                                collectionProcedureCurrent.setProcedureStatus(procedureStatusMap.get(rsCollection.getLong("status")));
+
+                                                if(rsCollection.getLong("status")==2)
+                                                    if(rsCollection.getDate("status_date")!=null)
+                                                        collectionProcedureCurrent.setCloseDate(rsCollection.getDate("status_date"));
+
+                                                CollectionPhase collectionPhase = new CollectionPhase();
+
+                                                if(rsCollection.getDate("state_date")!=null)
+                                                    collectionPhase.setStartDate(rsCollection.getDate("state_date"));
+
+                                                if(rsCollection.getLong("result")>0)
+                                                    collectionPhase.setPhaseStatus(phaseStatusMap.get(rsCollection.getLong("result")));
+
+                                                if(rsCollection.getLong("state")>0)
+                                                    collectionPhase.setPhaseType(phaseTypeMap.get(rsCollection.getLong("state")));
+
+                                                if(rsCollection.getLong("result")>1)
+                                                    if(rsCollection.getDate("result_date")!=null)
+                                                        collectionPhase.setCloseDate(rsCollection.getDate("result_date"));
 
 
 
 
 
 
+                                                try
+                                                {
+                                                    Statement stCollectionDetails = connection.createStatement();
+                                                    ResultSet rsCollectionDetails = stCollectionDetails.executeQuery("select * from legal_process_state_details where " +
+                                                            "legal_process_state_details.state_id = "
+                                                            +rsCollection.getInt("id") +
+                                                            " order by credit_id");
+                                                    if(rsCollectionDetails != null)
+                                                    {
+
+                                                        PhaseDetails phaseDetails = new PhaseDetails();
+
+                                                        while (rsCollectionDetails.next())
+                                                        {
+
+                                                            if(rsCollectionDetails.getInt("record_type")==1)
+                                                            {
+                                                                Loan phaseLoan = debtorLoans.get(rsCollectionDetails.getLong("credit_id"));
+                                                                phaseLoans.add(phaseLoan);
+
+
+                                                                phaseDetails.setLoan_id(rsCollectionDetails.getLong("credit_id"));
+                                                                phaseDetails.setStartTotalAmount(rsCollectionDetails.getDouble("debt_main")+rsCollectionDetails.getDouble("debt_percent")+rsCollectionDetails.getDouble("debt_penalty"));
+                                                                phaseDetails.setStartPrincipal(rsCollectionDetails.getDouble("debt_main"));
+                                                                phaseDetails.setStartInterest(rsCollectionDetails.getDouble("debt_percent"));
+                                                                phaseDetails.setStartPenalty(rsCollectionDetails.getDouble("debt_penalty"));
+                                                                phaseDetails.setStartFee((double)0);
+                                                            }
+                                                            else
+                                                            {
+                                                                Loan phaseLoan = debtorLoans.get(rsCollectionDetails.getLong("credit_id"));
+                                                                phaseLoans.add(phaseLoan);
+
+                                                                phaseDetails.setCloseTotalAmount(rsCollectionDetails.getDouble("debt_main")+rsCollectionDetails.getDouble("debt_percent")+rsCollectionDetails.getDouble("debt_penalty"));
+                                                                phaseDetails.setClosePrincipal(rsCollectionDetails.getDouble("debt_main"));
+                                                                phaseDetails.setCloseInterest(rsCollectionDetails.getDouble("debt_percent"));
+                                                                phaseDetails.setClosePenalty(rsCollectionDetails.getDouble("debt_penalty"));
+                                                                phaseDetails.setCloseFee((double)0);
+
+                                                            }
 
 
 
 
 
+                                                        }
+
+                                                        collectionPhase.setPhaseDetails(phaseDetails);
+
+                                                        rsCollectionDetails.close();
+                                                        stCollectionDetails.close();
+                                                    }
+                                                }
+                                                catch (SQLException ex)
+                                                {
+                                                    errorList.add(" collection pashe details error " + ex + " debtor id = " +debtor.getId());
+                                                }
+
+                                                this.collectionPhaseService.add(collectionPhase);
 
 
 
+                                                listOfPhases.add(collectionPhase);
 
+                                            }
 
+                                            stCollection.close();
+                                            rsCollection.close();
+                                        }
+                                    }
+                                    catch (SQLException ex)
+                                    {
+                                        errorList.add(" collection error " + ex + " debtor id == "+debtor.getId());
+                                    }
 
+                                }
+                                else
+                                {
+                                    System.out.println("Failed to make connection!");
+                                }
+                            }
+                            catch(Exception ex)
+                            {
+                                errorList.add(" collection error " + ex + " debtor id == "+debtor.getId());
+                            }
 
                         }
 
-                        migrationSuccess = true;
                         rs.close();
                         st.close();
                     }
                 }
                 catch (SQLException ex)
                 {
-                    System.out.println("Connection Failed! Check output console");
-                    ex.printStackTrace();
                     errorList.add("debtor migration error: query ="+ex);
                     return migrationSuccess;
                 }
@@ -1481,6 +1854,126 @@ public class Migration1Job implements Job{
     }
 
 
+    private boolean collectionPhaseTypeMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+
+                    ProcedureType procedureType = new ProcedureType();
+                    procedureType.setName("Взыскание задолженности");
+
+                    procedureTypeService.add(procedureType);
+
+                    procedureTypeMap.put((long)1,procedureType);
+
+                    EventStatus eventStatus = new EventStatus();
+                    eventStatus.setName("status1");
+                    eventStatusService.add(eventStatus);
+
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 36 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            PhaseType phaseType = new PhaseType();
+                            phaseType.setName(rs.getString("type_name"));
+
+                            phaseTypeService.add(phaseType);
+
+                            phaseTypeMap.put(rs.getLong("type_id"),phaseType);
+                        }
+
+                        migrationSuccess = true;
+
+                    }
+
+
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 38 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            PhaseStatus phaseStatus = new PhaseStatus();
+                            phaseStatus.setName(rs.getString("type_name"));
+
+                            phaseStatusService.add(phaseStatus);
+
+                            phaseStatusMap.put(rs.getLong("type_id"),phaseStatus);
+
+                        }
+
+                        migrationSuccess = true;
+
+                    }
+
+
+
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 37 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+
+                            ProcedureStatus procedureStatus = new ProcedureStatus();
+                            procedureStatus.setName(rs.getString("type_name"));
+                            procedureStatusService.add(procedureStatus);
+
+                            procedureStatusMap.put(rs.getLong("type_id"),procedureStatus);
+
+                        }
+
+                        migrationSuccess = true;
+
+                    }
+
+
+
+                    rs = st.executeQuery("select * from system_type where system_type.group_id = 44 order by system_type.type_id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+
+                            EventType eventType = new EventType();
+
+                            eventType.setName(rs.getString("type_name"));
+
+                            eventTypeService.add(eventType);
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    return migrationSuccess;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in User migration "+ex);
+        }
+
+        return migrationSuccess;
+    }
 
     private boolean creditOrderMigrate(Connection connection)
     {
@@ -1517,6 +2010,8 @@ public class Migration1Job implements Job{
 
                             this.creditOrderService.add(creditOrder);
 
+                            crditOrderMap.put(rs.getLong("id"),creditOrder);
+
                         }
 
                         migrationSuccess = true;
@@ -1544,9 +2039,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
-
 
     private boolean workSectorMigrate(Connection connection)
     {
@@ -1568,6 +2060,8 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             workSectorService.add(newEntity);
+
+                            workSectorMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -1595,7 +2089,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
 
     private boolean loanStatusMigrate(Connection connection)
     {
@@ -1617,6 +2110,9 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             loanStateService.add(newEntity);
+
+                            loanStateMap.put(rs.getLong("type_id"),newEntity);
+
                         }
 
                         migrationSuccess = true;
@@ -1644,7 +2140,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
 
     private boolean inspectionResultTypeMigrate(Connection connection)
     {
@@ -1666,6 +2161,8 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             inspectionResultTypeService.add(newEntity);
+
+                            inspectionResultTypeMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -1693,8 +2190,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
 
     private boolean paymentTypeMigrate(Connection connection)
     {
@@ -1716,6 +2211,8 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             paymentTypeService.add(newEntity);
+
+                            paymentTypeMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -1743,9 +2240,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
-
 
     private boolean quantityTypeMigrate(Connection connection)
     {
@@ -1767,6 +2261,8 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             quantityTypeService.add(newEntity);
+
+                            quantityTypeMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -1794,9 +2290,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
-
 
     private boolean itemTypeMigrate(Connection connection)
     {
@@ -1818,6 +2311,8 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             itemTypeService.add(newEntity);
+
+                            itemTypeMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -1845,8 +2340,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
 
     private boolean loanTypeMigrate(Connection connection)
     {
@@ -1868,6 +2361,8 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             loanTypeService.add(newEntity);
+
+                            loanTypeMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -1895,9 +2390,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
-
 
     private boolean debtorTypeMigrate(Connection connection)
     {
@@ -1919,6 +2411,7 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             debtorTypeService.add(newEntity);
+                            debtorTypeMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -1946,8 +2439,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
 
     private boolean rateTypeMigrate(Connection connection)
     {
@@ -1971,6 +2462,8 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             orderTermFloatingRateTypeService.add(newEntity);
+
+                            rateTypeMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -1998,8 +2491,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
 
     private boolean daysCalcMethodMigrate(Connection connection)
     {
@@ -2023,6 +2514,7 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             orderTermDaysMethodService.add(newEntity);
+                            daysMethodMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -2050,7 +2542,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
 
     private boolean loanCurrencyMigrate(Connection connection)
     {
@@ -2074,6 +2565,8 @@ public class Migration1Job implements Job{
                             newEntity.setName(rs.getString("type_name"));
 
                             orderTermCurrencyService.add(newEntity);
+
+                            currencyMap.put(rs.getLong("type_id"),newEntity);
                         }
 
                         migrationSuccess = true;
@@ -2101,8 +2594,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
 
     private boolean loanFundMigrate(Connection connection)
     {
@@ -2122,10 +2613,11 @@ public class Migration1Job implements Job{
                         {
                             OrderTermFund newEntity = new OrderTermFund();
 
-
                             newEntity.setName(rs.getString("type_name"));
 
                             orderTermFundService.add(newEntity);
+
+                            fundMap.put(rs.getLong("type_id"),newEntity );
                         }
 
                         migrationSuccess = true;
@@ -2153,8 +2645,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
 
     private boolean orderTypeMigrate(Connection connection)
     {
@@ -2205,7 +2695,6 @@ public class Migration1Job implements Job{
         return migrationSuccess;
     }
 
-
     private boolean orderStateMigrate(Connection connection)
     {
         boolean migrationSuccess = false;
@@ -2255,8 +2744,6 @@ public class Migration1Job implements Job{
         return migrationSuccess;
     }
 
-
-
     private boolean migrateUsers(Connection connection)
     {
         boolean migrationSuccess = false;
@@ -2282,7 +2769,7 @@ public class Migration1Job implements Job{
                             user.setUsername(rs.getString("login"));
                             user.setPassword(rs.getString("password"));
                             user.setEnabled(rs.getShort("status")==1 ? true : false);
-                            userService.create(user);
+
 
                             if(user.isEnabled())
                             {
@@ -2357,7 +2844,12 @@ public class Migration1Job implements Job{
                                 staff.setPerson(person);
 
                                 this.staffService.create(staff);
+
+                                user.setStaff(staff);
                             }
+
+
+                            userService.create(user);
                         }
 
                         migrationSuccess = true;
@@ -2385,8 +2877,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
-
 
     private boolean positionMigrate(Connection connection)
     {
@@ -2442,7 +2932,6 @@ public class Migration1Job implements Job{
 
         return migrationSuccess;
     }
-
 
     private boolean departmentMigrate(Connection connection)
     {
@@ -2568,7 +3057,6 @@ public class Migration1Job implements Job{
         return migrationSuccess;
     }
 
-
     private boolean idDocGivenByMigrate(Connection connection)
     {
         boolean migrationSuccess = false;
@@ -2586,12 +3074,17 @@ public class Migration1Job implements Job{
 
                     identityDocGivenByService.create(identityDocGivenBy1);
 
+                    identityDocGivenByMap.put((long)1,identityDocGivenBy1);
+
+
                     IdentityDocGivenBy identityDocGivenBy2 = new IdentityDocGivenBy();
 
                     identityDocGivenBy2.setName("МинЮст");
                     identityDocGivenBy2.setEnabled(true);
 
                     identityDocGivenByService.create(identityDocGivenBy2);
+
+                    identityDocGivenByMap.put((long)2,identityDocGivenBy2);
 
                     migrationSuccess = true;
                 }
@@ -2623,6 +3116,7 @@ public class Migration1Job implements Job{
         try
         {
             if (connection != null) {
+
                 ResultSet rs = null;
                 try
                 {
@@ -2638,6 +3132,9 @@ public class Migration1Job implements Job{
                             identityDocType.setEnabled(rs.getShort("status")==1 ? true : false);
 
                             identityDocTypeService.create(identityDocType);
+
+                            identityDocTypeMap.put(rs.getLong("type_id"),identityDocType);
+
                         }
 
                         migrationSuccess = true;
@@ -2711,6 +3208,8 @@ public class Migration1Job implements Job{
 
                                 villageService.create(village);
 
+                                villageMap.put(rs.getLong("id"),village);
+
                             }
                             catch (Exception ex)
                             {
@@ -2766,24 +3265,30 @@ public class Migration1Job implements Job{
                             "from aokmotu");
                     if(rs != null)
                     {
+                        long counter=0;
                         while (rs.next())
                         {
+                            counter++;
+
                             Aokmotu aokmotu = new Aokmotu();
 
                             aokmotu.setName(rs.getString("title"));
 
-                            District district = this.districtService.findById(rs.getInt("district_id"));
+                            District district = districtMap.get(rs.getLong("district_id"));
 
-                            if(rs.getInt("district_id")==11) district = this.districtService.findById(63);
-                            if(rs.getInt("district_id")==15) district = this.districtService.findById(30);
-                            if(rs.getInt("district_id")==47) district = this.districtService.findById(36);
-                            if(rs.getInt("district_id")==18) district = this.districtService.findById(35);
-                            if(rs.getInt("district_id")==19) district = this.districtService.findById(52);
+                            if(rs.getInt("district_id")==11) district = districtMap.get((long)63);
+                            if(rs.getInt("district_id")==15) district = districtMap.get((long)30);
+                            if(rs.getInt("district_id")==47) district = districtMap.get((long)36);
+                            if(rs.getInt("district_id")==18) district = districtMap.get((long)35);
+                            if(rs.getInt("district_id")==19) district = districtMap.get((long)52);
 
-                            aokmotu.setDistrict(district );
+                            aokmotu.setDistrict(district);
                             aokmotu.setCode(String.valueOf(rs.getInt("aokmotu")));
 
                             aokmotuService.create(aokmotu);
+
+                            aokmotuMap.put(rs.getLong("id"),aokmotu);
+
                         }
 
                         migrationSuccess = true;
@@ -2833,15 +3338,23 @@ public class Migration1Job implements Job{
                             district.setName(rs.getString("type_name"));
                             district.setCode(String.valueOf(rs.getLong("type_id")));
 
-                            if(rs.getInt("details_id")>0 )
-                                if(rs.getInt("details_id")<10 )
-                                    district.setRegion(this.regionService.findByCode(String.valueOf(rs.getInt("details_id"))));
-                                else district.setRegion(this.regionService.findByCode("2"));
+                            if(rs.getInt("details_id")>0 && rs.getInt("details_id")<10)
+                            {
+                                district.setRegion(regionMap.get(rs.getLong("details_id")));
+                            }
+                            else
+                            {
+                                district.setRegion(regionMap.get((long)2));
+                            }
 
-                            if(rs.getInt("details_id")==0 ) district.setRegion(this.regionService.findByCode("9"));
-
+                            if(rs.getInt("details_id")==0 )
+                            {
+                                district.setRegion(regionMap.get((long)9));
+                            }
 
                             districtService.create(district);
+
+                            districtMap.put(rs.getLong("type_id"),district);
                         }
 
                         migrationSuccess = true;
@@ -2892,6 +3405,8 @@ public class Migration1Job implements Job{
                             region.setCode(String.valueOf(rs.getLong("type_id")));
 
                             regionService.create(region);
+
+                            regionMap.put(rs.getLong("type_id"),region);
                         }
 
                         migrationSuccess = true;
@@ -2930,6 +3445,7 @@ public class Migration1Job implements Job{
 
         try
         {
+
             if (connection != null) {
                 ResultSet rs = null;
                 try
@@ -2946,6 +3462,8 @@ public class Migration1Job implements Job{
                             orgForm.setEnabled(rs.getShort("status")==1 ? true : false);
 
                             orgFormService.create(orgForm);
+
+                            organizationFormMap.put(rs.getLong("type_id"),orgForm);
                         }
 
                         migrationSuccess = true;
@@ -2955,8 +3473,6 @@ public class Migration1Job implements Job{
                 }
                 catch (SQLException ex)
                 {
-                    System.out.println("Connection Failed! Check output console");
-                    ex.printStackTrace();
                     errorList.add("orgFrom migration error: query error"+ex);
                     return migrationSuccess;
                 }
@@ -2986,15 +3502,9 @@ public class Migration1Job implements Job{
         }
         catch (ClassNotFoundException e)
         {
-            System.out.println("Where is your PostgreSQL JDBC Driver? Include in your library path!");
-            e.printStackTrace();
-
             errorList.add(" Class for name error"+e);
             return null;
-
         }
-
-        System.out.println("PostgreSQL JDBC Driver Registered!");
 
         try {
 
@@ -3008,13 +3518,8 @@ public class Migration1Job implements Job{
                     "jdbc:postgresql://150.0.0.4:5432/migration2", "postgres",
                     "armad27raptor");
         } catch (SQLException e) {
-
-            System.out.println("Connection Failed! Check output console");
-            e.printStackTrace();
-
             errorList.add("connection error"+e);
             return null;
-
         }
 
         return connection;
