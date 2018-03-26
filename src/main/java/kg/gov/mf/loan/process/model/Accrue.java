@@ -37,7 +37,7 @@ public class Accrue extends GenericModel {
 
     private boolean lastInstPassed;
 
-    @ManyToOne(targetEntity=Loan.class, fetch = FetchType.EAGER)
+    @ManyToOne(targetEntity=Loan.class, fetch = FetchType.LAZY)
     @JoinColumn(name="loanId")
     Loan loan;
 

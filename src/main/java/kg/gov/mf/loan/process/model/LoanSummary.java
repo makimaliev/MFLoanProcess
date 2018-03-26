@@ -67,7 +67,7 @@ public class LoanSummary extends GenericModel {
     @Column(precision = 12, scale = 5)
     private Double overdueFee;
 
-    @ManyToOne(targetEntity=Loan.class, fetch = FetchType.EAGER)
+    @ManyToOne(targetEntity=Loan.class, fetch = FetchType.LAZY)
     @JoinColumn(name="loanId")
     Loan loan;
 
