@@ -1668,145 +1668,164 @@ public class Migration1Job implements Job{
                             {
 
                                 if (connection != null) {
-                                    ResultSet rsCollection = null;
+                                    ResultSet rsCollectionProcedure = null;
                                     try
                                     {
-                                        Statement stCollection = connection.createStatement();
-                                        rsCollection = stCollection.executeQuery("select * from legal_process_state where " +
-                                                "legal_process_state.legal_process_id in ( select legal_process.id from legal_process where legal_process.person_id ="
-                                                        +rs.getInt("person_id")+") " +
-                                                " order by legal_process_state.legal_process_id, state_date");
-                                        if(rsCollection != null)
+                                        Statement stCollectionProcedure = connection.createStatement();
+                                        rsCollectionProcedure = stCollectionProcedure.executeQuery("select * from legal_process where legal_process.person_id ="
+                                                +rs.getInt("person_id"));
+                                        if(rsCollectionProcedure != null)
                                         {
 
-                                            int collectionProceduteID = 0;
-
-                                            CollectionProcedure collectionProcedureCurrent = new CollectionProcedure();
-
-                                            Set<CollectionPhase> listOfPhases = new HashSet<CollectionPhase>();
-                                            Set<CollectionEvent> listOfEvents = new HashSet<CollectionEvent>();
-
-                                            Set<Loan> phaseLoans = new HashSet<Loan>();
-
-                                            while (rsCollection.next())
+                                            while (rsCollectionProcedure.next())
                                             {
 
-                                                if(rsCollection.getLong("state")>1)
-                                                {
-                                                    if(rsCollection.getInt("legal_process_id")!=collectionProceduteID)
-                                                    {
-
-                                                        collectionProcedureCurrent.setCollectionPhases(listOfPhases);
-
-                                                        this.collectionProcedureService.add(collectionProcedureCurrent);
-
-                                                        listOfPhases.removeAll(listOfPhases);
-
-                                                    }
-                                                }
-
-                                                if(rsCollection.getLong("state")==1)
-                                                {
-                                                    collectionProcedureCurrent.setStartDate(rsCollection.getDate("state_date"));
-                                                    collectionProcedureCurrent.setProcedureType(procedureTypeMap.get((long)1));
-
-                                                    collectionProceduteID = rsCollection.getInt("legal_process_id");
-                                                }
-
-                                                collectionProcedureCurrent.setProcedureStatus(procedureStatusMap.get(rsCollection.getLong("status")));
-
-                                                if(rsCollection.getLong("status")==2)
-                                                    if(rsCollection.getDate("status_date")!=null)
-                                                        collectionProcedureCurrent.setCloseDate(rsCollection.getDate("status_date"));
-
-                                                CollectionPhase collectionPhase = new CollectionPhase();
-
-                                                if(rsCollection.getDate("state_date")!=null)
-                                                    collectionPhase.setStartDate(rsCollection.getDate("state_date"));
-
-                                                if(rsCollection.getLong("result")>0)
-                                                    collectionPhase.setPhaseStatus(phaseStatusMap.get(rsCollection.getLong("result")));
-
-                                                if(rsCollection.getLong("state")>0)
-                                                    collectionPhase.setPhaseType(phaseTypeMap.get(rsCollection.getLong("state")));
-
-                                                if(rsCollection.getLong("result")>1)
-                                                    if(rsCollection.getDate("result_date")!=null)
-                                                        collectionPhase.setCloseDate(rsCollection.getDate("result_date"));
+                                                CollectionProcedure collectionProcedure = new CollectionProcedure();
+                                                collectionProcedure.setProcedureType(procedureTypeMap.get((long)1));
 
 
-
-
-
+                                                Set<CollectionPhase> listOfPhases = new HashSet<CollectionPhase>();
 
                                                 try
                                                 {
-                                                    Statement stCollectionDetails = connection.createStatement();
-                                                    ResultSet rsCollectionDetails = stCollectionDetails.executeQuery("select * from legal_process_state_details where " +
-                                                            "legal_process_state_details.state_id = "
-                                                            +rsCollection.getInt("id") +
-                                                            " order by credit_id");
-                                                    if(rsCollectionDetails != null)
-                                                    {
 
-                                                        PhaseDetails phaseDetails = new PhaseDetails();
-
-                                                        while (rsCollectionDetails.next())
+                                                    if (connection != null) {
+                                                        ResultSet rsCollection = null;
+                                                        try
                                                         {
-
-                                                            if(rsCollectionDetails.getInt("record_type")==1)
+                                                            Statement stCollection = connection.createStatement();
+                                                            rsCollection = stCollection.executeQuery("select * from legal_process_state where " +
+                                                                    "legal_process_state.legal_process_id ="
+                                                                            +rsCollectionProcedure.getInt("id")+
+                                                                    " order by legal_process_state.state_date");
+                                                            if(rsCollection != null)
                                                             {
-                                                                Loan phaseLoan = debtorLoans.get(rsCollectionDetails.getLong("credit_id"));
-                                                                phaseLoans.add(phaseLoan);
 
+                                                                while (rsCollection.next())
+                                                                {
 
-                                                                phaseDetails.setLoan_id(rsCollectionDetails.getLong("credit_id"));
-                                                                phaseDetails.setStartTotalAmount(rsCollectionDetails.getDouble("debt_main")+rsCollectionDetails.getDouble("debt_percent")+rsCollectionDetails.getDouble("debt_penalty"));
-                                                                phaseDetails.setStartPrincipal(rsCollectionDetails.getDouble("debt_main"));
-                                                                phaseDetails.setStartInterest(rsCollectionDetails.getDouble("debt_percent"));
-                                                                phaseDetails.setStartPenalty(rsCollectionDetails.getDouble("debt_penalty"));
-                                                                phaseDetails.setStartFee((double)0);
+                                                                    if(rsCollection.getLong("state")==1 && collectionProcedure.getStartDate()==null)
+                                                                    {
+                                                                        collectionProcedure.setStartDate(rsCollection.getDate("state_date"));
+                                                                    }
+
+                                                                    collectionProcedure.setProcedureStatus(procedureStatusMap.get(rsCollection.getLong("status")));
+
+                                                                    if(rsCollection.getLong("status")==2)
+                                                                        if(rsCollection.getDate("status_date")!=null)
+                                                                            collectionProcedure.setCloseDate(rsCollection.getDate("status_date"));
+
+                                                                    CollectionPhase collectionPhase = new CollectionPhase();
+
+                                                                    Set<Loan> phaseLoans = new HashSet<Loan>();
+
+                                                                    collectionPhase.setCollectionProcedure(collectionProcedure);
+//
+                                                                    if(rsCollection.getDate("state_date")!=null)
+                                                                        collectionPhase.setStartDate(rsCollection.getDate("state_date"));
+
+                                                                    if(rsCollection.getLong("result")>0)
+                                                                        collectionPhase.setPhaseStatus(phaseStatusMap.get(rsCollection.getLong("result")));
+
+                                                                    if(rsCollection.getLong("state")>0)
+                                                                        collectionPhase.setPhaseType(phaseTypeMap.get(rsCollection.getLong("state")));
+
+                                                                    if(rsCollection.getLong("result")>1)
+                                                                        if(rsCollection.getDate("result_date")!=null)
+                                                                            collectionPhase.setCloseDate(rsCollection.getDate("result_date"));
+
+                                                                    try
+                                                                    {
+                                                                        Statement stCollectionDetails = connection.createStatement();
+                                                                        ResultSet rsCollectionDetails = stCollectionDetails.executeQuery("select * from legal_process_state_details where " +
+                                                                                "legal_process_state_details.state_id = "
+                                                                                +rsCollection.getInt("id") +
+                                                                                " order by credit_id");
+                                                                        if(rsCollectionDetails != null)
+                                                                        {
+
+                                                                            PhaseDetails phaseDetails = new PhaseDetails();
+
+                                                                            while (rsCollectionDetails.next())
+                                                                            {
+
+                                                                                if(rsCollectionDetails.getInt("record_type")==1)
+                                                                                {
+                                                                                    Loan phaseLoan = debtorLoans.get(rsCollectionDetails.getLong("credit_id"));
+                                                                                    phaseLoans.add(phaseLoan);
+
+                                                                                    phaseDetails.setLoan_id(rsCollectionDetails.getLong("credit_id"));
+                                                                                    phaseDetails.setStartTotalAmount(rsCollectionDetails.getDouble("debt_main")+rsCollectionDetails.getDouble("debt_percent")+rsCollectionDetails.getDouble("debt_penalty"));
+                                                                                    phaseDetails.setStartPrincipal(rsCollectionDetails.getDouble("debt_main"));
+                                                                                    phaseDetails.setStartInterest(rsCollectionDetails.getDouble("debt_percent"));
+                                                                                    phaseDetails.setStartPenalty(rsCollectionDetails.getDouble("debt_penalty"));
+                                                                                    phaseDetails.setStartFee((double)0);
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    Loan phaseLoan = debtorLoans.get(rsCollectionDetails.getLong("credit_id"));
+                                                                                    phaseLoans.add(phaseLoan);
+
+                                                                                    phaseDetails.setCloseTotalAmount(rsCollectionDetails.getDouble("debt_main")+rsCollectionDetails.getDouble("debt_percent")+rsCollectionDetails.getDouble("debt_penalty"));
+                                                                                    phaseDetails.setClosePrincipal(rsCollectionDetails.getDouble("debt_main"));
+                                                                                    phaseDetails.setCloseInterest(rsCollectionDetails.getDouble("debt_percent"));
+                                                                                    phaseDetails.setClosePenalty(rsCollectionDetails.getDouble("debt_penalty"));
+                                                                                    phaseDetails.setCloseFee((double)0);
+
+                                                                                }
+
+                                                                            }
+
+                                                                            phaseDetails.setCollectionPhase(collectionPhase);
+                                                                            collectionPhase.setPhaseDetails(phaseDetails);
+
+                                                                            rsCollectionDetails.close();
+                                                                            stCollectionDetails.close();
+                                                                        }
+                                                                    }
+                                                                    catch (SQLException ex)
+                                                                    {
+                                                                        errorList.add(" collection phase details error " + ex + " debtor id = " +debtor.getId());
+                                                                    }
+
+                                                                    collectionPhase.setLoans(phaseLoans);
+                                                                    listOfPhases.add(collectionPhase);
+
+                                                                }
+
+                                                                stCollection.close();
+                                                                rsCollection.close();
                                                             }
-                                                            else
-                                                            {
-                                                                Loan phaseLoan = debtorLoans.get(rsCollectionDetails.getLong("credit_id"));
-                                                                phaseLoans.add(phaseLoan);
-
-                                                                phaseDetails.setCloseTotalAmount(rsCollectionDetails.getDouble("debt_main")+rsCollectionDetails.getDouble("debt_percent")+rsCollectionDetails.getDouble("debt_penalty"));
-                                                                phaseDetails.setClosePrincipal(rsCollectionDetails.getDouble("debt_main"));
-                                                                phaseDetails.setCloseInterest(rsCollectionDetails.getDouble("debt_percent"));
-                                                                phaseDetails.setClosePenalty(rsCollectionDetails.getDouble("debt_penalty"));
-                                                                phaseDetails.setCloseFee((double)0);
-
-                                                            }
-
-
-
-
-
+                                                        }
+                                                        catch (SQLException ex)
+                                                        {
+                                                            errorList.add(" collection error " + ex + " debtor id == "+debtor.getId());
                                                         }
 
-                                                        collectionPhase.setPhaseDetails(phaseDetails);
 
-                                                        rsCollectionDetails.close();
-                                                        stCollectionDetails.close();
+                                                        collectionProcedure.setCollectionPhases(listOfPhases);
+
+                                                        this.collectionProcedureService.add(collectionProcedure);
+
+
+                                                    }
+                                                    else
+                                                    {
+                                                        System.out.println("Failed to make connection!");
                                                     }
                                                 }
-                                                catch (SQLException ex)
+                                                catch(Exception ex)
                                                 {
-                                                    errorList.add(" collection pashe details error " + ex + " debtor id = " +debtor.getId());
+                                                    errorList.add(" collection error " + ex + " debtor id == "+debtor.getId());
                                                 }
 
-                                                this.collectionPhaseService.add(collectionPhase);
 
 
-
-                                                listOfPhases.add(collectionPhase);
 
                                             }
 
-                                            stCollection.close();
-                                            rsCollection.close();
+                                            stCollectionProcedure.close();
+                                            rsCollectionProcedure.close();
                                         }
                                     }
                                     catch (SQLException ex)
