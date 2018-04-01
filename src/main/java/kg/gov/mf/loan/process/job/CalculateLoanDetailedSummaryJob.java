@@ -173,12 +173,15 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                     totalPenaltyPaid += payment.getPenalty();
                 }
 
-                Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), onDate);
-                if(paymentDayBeforeOnDate != null)
+                List<Payment> paymentsDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), onDate);
+                if(paymentsDayBeforeOnDate != null)
                 {
-                    principalPaid = paymentDayBeforeOnDate.getPrincipal();
-                    interestPaid = paymentDayBeforeOnDate.getInterest();
-                    penaltyPaid = paymentDayBeforeOnDate.getPenalty();
+                    for (Payment payment: paymentsDayBeforeOnDate
+                            ) {
+                        principalPaid += payment.getPrincipal();
+                        interestPaid += payment.getInterest();
+                        penaltyPaid += payment.getPenalty();
+                    }
                 }
 
                 summary.setDaysInPeriod(daysInPeriod);

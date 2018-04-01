@@ -25,9 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.Calendar;
 
 @Transactional
@@ -77,19 +75,9 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
             Loan loan = loanService.getById(temp.getId());
             Date regDate = loan.getRegDate();
 
-            Calendar now = Calendar.getInstance();
-            Calendar start = Calendar.getInstance();
-            start.setTime(regDate);
-
-            Calendar curr = start;
-            while (curr.compareTo(now) < 0)
-            {
-                curr.add(Calendar.DAY_OF_MONTH,1);
-                Date onDate = curr.getTime();
-                fillLoanDetailSummaryForDate(loan, onDate);
-                if(curr.get(Calendar.DAY_OF_MONTH) != 2)
-                    removePreviosDate(loan, DateUtils.subtract(onDate, DateUtils.DAY,1));
-            }
+            List<Date> criticalDates = getCriticalDates(loan, regDate);
+            for(Date date: criticalDates)
+                fillLoanDetailSummaryForDate(loan, date);
         }
     }
 
@@ -184,12 +172,15 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
                 totalPenaltyPaid += payment.getPenalty();
             }
 
-            Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), onDate);
-            if(paymentDayBeforeOnDate != null)
+            List<Payment> paymentsDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), onDate);
+            if(paymentsDayBeforeOnDate != null)
             {
-                principalPaid = paymentDayBeforeOnDate.getPrincipal();
-                interestPaid = paymentDayBeforeOnDate.getInterest();
-                penaltyPaid = paymentDayBeforeOnDate.getPenalty();
+                for (Payment payment: paymentsDayBeforeOnDate
+                     ) {
+                    principalPaid += payment.getPrincipal();
+                    interestPaid += payment.getInterest();
+                    penaltyPaid += payment.getPenalty();
+                }
             }
 
             summary.setDaysInPeriod(daysInPeriod);
@@ -271,6 +262,38 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
         createTaskIfOverdue(summary, onDate);
     }
 
+    private List<Date> getCriticalDates(Loan loan, Date regDate)
+    {
+        Set<Date> result = new HashSet<>();
+        Calendar now = Calendar.getInstance();
+        Calendar start = Calendar.getInstance();
+        start.setTime(regDate);
+
+        //get start of each month
+        Calendar curr = start;
+        while (curr.compareTo(now) < 0)
+        {
+            curr.add(Calendar.MONTH, 1);
+            curr.set(Calendar.DAY_OF_MONTH,2);
+            Date onDate = curr.getTime();
+            result.add(onDate);
+        }
+
+        Set<Payment> payments = loan.getPayments();
+        for (Payment payment: payments
+             ) {
+            result.add(DateUtils.add(payment.getPaymentDate(), DateUtils.DAY, 1));
+        }
+
+        List<Date> dates = new ArrayList<>();
+        for(Date date: result)
+            dates.add(date);
+
+        Collections.sort(dates);
+
+        return dates;
+    }
+
     private void createTaskIfOverdue(LoanDetailedSummary summary, Date onDate){
 
         if(summary.getPrincipalOverdue() + summary.getInterestOverdue() > 0.0)
@@ -300,12 +323,12 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
 
     }
 
-    private void removePreviosDate(Loan loan, Date startDate)
+    private void removePreviousDate(Loan loan, Date startDate)
     {
         LoanDetailedSummary prevSummary = loanDetailedSummaryService.getByOnDateAndLoanId(startDate, loan.getId());
         if(prevSummary != null)
         {
-            Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), startDate);
+            List<Payment> paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), startDate);
             if(paymentDayBeforeOnDate == null)
             {
                 loanDetailedSummaryService.remove(prevSummary);
