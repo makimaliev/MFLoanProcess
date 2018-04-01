@@ -69,8 +69,12 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
     {
         //get loans
         List<Loan> loans = loanService.list();
-        for (Loan loan: loans)
+        for (Loan temp: loans)
         {
+            if(temp.getId()!=9)
+                continue;
+
+            Loan loan = loanService.getById(temp.getId());
             Date regDate = loan.getRegDate();
 
             Calendar now = Calendar.getInstance();
@@ -149,7 +153,7 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
             accrue.setToDate(DateUtils.subtract(onDate, DateUtils.DAY,1));
         }
 
-        List<PaymentSchedule> row = scheduleService.getRowsUntilOnDate(onDate);
+        List<PaymentSchedule> row = scheduleService.getRowsUntilOnDateByLoanId(loan.getId(), onDate);
         if(row != null)
         {
             Set<PaymentSchedule> all = loan.getPaymentSchedules();
@@ -172,7 +176,7 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
             summary.setCollectedPenaltyPayment(row.get(row.size()-1).getCollectedPenaltyPayment());
             summary.setDisbursement(row.get(row.size()-1).getDisbursement());
 
-            List<Payment> payments = paymentService.getRowsUntilOnDate(onDate);
+            List<Payment> payments = paymentService.getRowsUntilOnDateByLoanId(loan.getId(), onDate);
             for (Payment payment: payments)
             {
                 totalPrincipalPaid += payment.getPrincipal();
@@ -180,7 +184,7 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
                 totalPenaltyPaid += payment.getPenalty();
             }
 
-            Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDate(onDate);
+            Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), onDate);
             if(paymentDayBeforeOnDate != null)
             {
                 principalPaid = paymentDayBeforeOnDate.getPrincipal();
@@ -301,12 +305,16 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
         LoanDetailedSummary prevSummary = loanDetailedSummaryService.getByOnDateAndLoanId(startDate, loan.getId());
         if(prevSummary != null)
         {
-            loanDetailedSummaryService.remove(prevSummary);
-
-            Accrue accrue = accrueService.getByOnDateAndLoanId(DateUtils.subtract(startDate, DateUtils.DAY,1), loan.getId());
-            if(accrue != null)
+            Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), startDate);
+            if(paymentDayBeforeOnDate == null)
             {
-                accrueService.remove(accrue);
+                loanDetailedSummaryService.remove(prevSummary);
+
+                Accrue accrue = accrueService.getByOnDateAndLoanId(DateUtils.subtract(startDate, DateUtils.DAY,1), loan.getId());
+                if(accrue != null)
+                {
+                    accrueService.remove(accrue);
+                }
             }
         }
     }

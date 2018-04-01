@@ -142,7 +142,7 @@ public class CalculateLoanDetailedSummaryJob implements Job {
             }
 
 
-            List<PaymentSchedule> row = scheduleService.getRowsUntilOnDate(onDate);
+            List<PaymentSchedule> row = scheduleService.getRowsUntilOnDateByLoanId(loan.getId(), onDate);
             if(row != null)
             {
                 Set<PaymentSchedule> all = loan.getPaymentSchedules();
@@ -165,7 +165,7 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                 summary.setCollectedPenaltyPayment(row.get(row.size()-1).getCollectedPenaltyPayment());
                 summary.setDisbursement(row.get(row.size()-1).getDisbursement());
 
-                List<Payment> payments = paymentService.getRowsUntilOnDate(onDate);
+                List<Payment> payments = paymentService.getRowsUntilOnDateByLoanId(loan.getId(), onDate);
                 for (Payment payment: payments)
                 {
                     totalPrincipalPaid += payment.getPrincipal();
@@ -173,7 +173,7 @@ public class CalculateLoanDetailedSummaryJob implements Job {
                     totalPenaltyPaid += payment.getPenalty();
                 }
 
-                Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDate(onDate);
+                Payment paymentDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), onDate);
                 if(paymentDayBeforeOnDate != null)
                 {
                     principalPaid = paymentDayBeforeOnDate.getPrincipal();
