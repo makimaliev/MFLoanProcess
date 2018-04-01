@@ -2,6 +2,7 @@ package kg.gov.mf.loan.process.job;
 
 import kg.gov.mf.loan.manage.model.loan.CreditTerm;
 import kg.gov.mf.loan.manage.model.loan.Loan;
+import kg.gov.mf.loan.manage.model.loan.Payment;
 import kg.gov.mf.loan.manage.service.loan.CreditTermService;
 import kg.gov.mf.loan.manage.service.loan.LoanService;
 import kg.gov.mf.loan.manage.util.DateUtils;
@@ -16,9 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.Calendar;
 
 @Transactional
 @Component
@@ -40,20 +40,36 @@ public class CalculateLoanSummaryJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {
         JobItem job = getJobItemFromJobCaller(context);
         if(job == null) throw new NullPointerException(); //Write Custom Exception
-        Set<OnDate> onDates = job.getOnDates();
-        if(onDates == null) throw new NullPointerException(); //Write Custom Exception
-        for (OnDate date: onDates)
-            fillLoanSummaryForDate(date.getOnDate());
+        runForAllLoans();
     }
 
-    private void fillLoanSummaryForDate(Date onDate)
+    private void runForAllLoans()
     {
+        int count = 0;
         //get loans
         List<Loan> loans = loanService.list();
-        for (Loan loan: loans)
+        for (Loan temp: loans)
         {
+            if(count >= 100)
+                break;
+
+            Loan loan = loanService.getById(temp.getId());
+            Date regDate = loan.getRegDate();
+
+            List<Date> criticalDates = getCriticalDates(loan, regDate);
+            for(Date date: criticalDates)
+                fillLoanSummaryForDate(loan, date);
+
+            count++;
+        }
+    }
+
+    private void fillLoanSummaryForDate(Loan loan, Date onDate)
+    {
+        try{
+
             if(loanSummaryService.getByOnDateAndLoanId(onDate, loan.getId()) != null)
-                continue;
+                return;
 
             CreditTerm term = termService.getRecentTermByLoanIdAndOnDate(loan.getId(), onDate);
             if(term == null) throw new NullPointerException(); //Write Custom Exception
@@ -84,7 +100,45 @@ public class CalculateLoanSummaryJob implements Job {
                 summary.setTotalPaid(summary.getPaidPrincipal() + summary.getPaidInterest() + summary.getPaidPenalty());
                 loanSummaryService.add(summary);
             }
+
         }
+        catch (NullPointerException ex){
+            System.out.println("Loan id: " + loan.getId());
+            System.out.println("Class: " + ex.getClass().getSimpleName());
+            System.out.println("Message: " + ex.getMessage());
+        }
+    }
+
+    private List<Date> getCriticalDates(Loan loan, Date regDate)
+    {
+        Set<Date> result = new HashSet<>();
+        java.util.Calendar now = java.util.Calendar.getInstance();
+        java.util.Calendar start = java.util.Calendar.getInstance();
+        start.setTime(regDate);
+
+        //get start of each month
+        java.util.Calendar curr = start;
+        while (curr.compareTo(now) < 0)
+        {
+            curr.add(java.util.Calendar.MONTH, 1);
+            curr.set(Calendar.DAY_OF_MONTH,2);
+            Date onDate = curr.getTime();
+            result.add(onDate);
+        }
+
+        Set<Payment> payments = loan.getPayments();
+        for (Payment payment: payments
+                ) {
+            result.add(DateUtils.add(payment.getPaymentDate(), DateUtils.DAY, 1));
+        }
+
+        List<Date> dates = new ArrayList<>();
+        for(Date date: result)
+            dates.add(date);
+
+        Collections.sort(dates);
+
+        return dates;
     }
 
     private Double calculateOutstandingInterest(Double principalOutstanding, CreditTerm term, int daysInPeriod)

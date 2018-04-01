@@ -65,12 +65,13 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
 
     private void runForAllLoans()
     {
+        int count = 0;
         //get loans
         List<Loan> loans = loanService.list();
         for (Loan temp: loans)
         {
-            if(temp.getId()!=9)
-                continue;
+            if(count >= 100)
+                break;
 
             Loan loan = loanService.getById(temp.getId());
             Date regDate = loan.getRegDate();
@@ -78,188 +79,200 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
             List<Date> criticalDates = getCriticalDates(loan, regDate);
             for(Date date: criticalDates)
                 fillLoanDetailSummaryForDate(loan, date);
+
+            count++;
         }
     }
 
     private void fillLoanDetailSummaryForDate(Loan loan, Date onDate)
     {
-        if(loanDetailedSummaryService.getByOnDateAndLoanId(onDate, loan.getId())!=null)
-            return;
+        try{
 
-        LoanDetailedSummary lastSummary = loanDetailedSummaryService.getLastSummaryByLoanIdAndLTEOnDate(loan.getId(), onDate);
-        Accrue accrue = null;
+            if(loanDetailedSummaryService.getByOnDateAndLoanId(onDate, loan.getId())!=null)
+                return;
 
-        CreditTerm term = termService.getRecentTermByLoanIdAndOnDate(loan.getId(), onDate);
-        if(term == null) return;
+            LoanDetailedSummary lastSummary = loanDetailedSummaryService.getLastSummaryByLoanIdAndLTEOnDate(loan.getId(), onDate);
+            Accrue accrue = null;
 
-        LoanDetailedSummary summary = new LoanDetailedSummary();
-        summary.setLoan(loan);
-        summary.setOnDate(onDate);
+            CreditTerm term = termService.getRecentTermByLoanIdAndOnDate(loan.getId(), onDate);
+            if(term == null) return;
 
-        //Principal
-        Double totalPrincipalPayment = 0.0;
-        Double principalPaid = 0.0;
-        Double totalPrincipalPaid = 0.0;
-        Double principalOutstanding = 0.0; //totalDisbursement - totalPrincipalPaid-totalWriteOffPaid
-        Double principalWriteOff = 0.0;
-        Double totalPrincipalWriteOff = 0.0;
+            LoanDetailedSummary summary = new LoanDetailedSummary();
+            summary.setLoan(loan);
+            summary.setOnDate(onDate);
 
-        //Interest
-        Double interestPayment = 0.0;
-        Double totalDisbursement = 0.0;
-        Double collectedInterestDisbursed = 0.0; //sum of all collected interest (ignore dates)
-        Double interestPaid = 0.0;
-        Double totalCollectedInterestPayment = 0.0;
-        Double totalInterestPaid = 0.0;
-        Double totalInterestPayment = 0.0;//totalInterestAccrued+totalCollectedInterest
+            //Principal
+            Double totalPrincipalPayment = 0.0;
+            Double principalPaid = 0.0;
+            Double totalPrincipalPaid = 0.0;
+            Double principalOutstanding = 0.0; //totalDisbursement - totalPrincipalPaid-totalWriteOffPaid
+            Double principalWriteOff = 0.0;
+            Double totalPrincipalWriteOff = 0.0;
 
-        Double interestOutstanding = 0.0;
-        Double interestAccrued = 0.0; //principalOutstanding,creditTerm,from-to date.
-        Double interestOverdue = 0.0;
-        Double totalInterestAccrued = 0.0; //sum of interest accrued
-        Double totalInterestAccruedOnInterestPayment = 0.0;
+            //Interest
+            Double interestPayment = 0.0;
+            Double totalDisbursement = 0.0;
+            Double collectedInterestDisbursed = 0.0; //sum of all collected interest (ignore dates)
+            Double interestPaid = 0.0;
+            Double totalCollectedInterestPayment = 0.0;
+            Double totalInterestPaid = 0.0;
+            Double totalInterestPayment = 0.0;//totalInterestAccrued+totalCollectedInterest
 
-        //Penalty
-        Double totalCollectedPenaltyPayment = 0.0;
-        Double collectedPenaltyDisbursed = 0.0; //sum of all collected penalty (ignore dates)
-        Double penaltyAccrued = 0.0;
-        Double penaltyOutstanding = 0.0;
-        Double penaltyOverdue = 0.0;
-        Double penaltyPaid = 0.0;
-        Double totalPenaltyAccrued = 0.0;
-        Double totalPenaltyPaid = 0.0;
+            Double interestOutstanding = 0.0;
+            Double interestAccrued = 0.0; //principalOutstanding,creditTerm,from-to date.
+            Double interestOverdue = 0.0;
+            Double totalInterestAccrued = 0.0; //sum of interest accrued
+            Double totalInterestAccruedOnInterestPayment = 0.0;
 
-        Double principalOverdue = 0.0;
-        int daysInPeriod = 0;
+            //Penalty
+            Double totalCollectedPenaltyPayment = 0.0;
+            Double collectedPenaltyDisbursed = 0.0; //sum of all collected penalty (ignore dates)
+            Double penaltyAccrued = 0.0;
+            Double penaltyOutstanding = 0.0;
+            Double penaltyOverdue = 0.0;
+            Double penaltyPaid = 0.0;
+            Double totalPenaltyAccrued = 0.0;
+            Double totalPenaltyPaid = 0.0;
 
-        if(lastSummary != null){
-            daysInPeriod = DateUtils.getDifferenceDays(onDate, lastSummary.getOnDate());
-            accrue = new Accrue();
-            accrue.setLoan(loan);
-            accrue.setDaysInPeriod(daysInPeriod);
-            accrue.setFromDate(DateUtils.subtract(lastSummary.getOnDate(), DateUtils.DAY,1));
-            accrue.setToDate(DateUtils.subtract(onDate, DateUtils.DAY,1));
-        }
+            Double principalOverdue = 0.0;
+            int daysInPeriod = 0;
 
-        List<PaymentSchedule> row = scheduleService.getRowsUntilOnDateByLoanId(loan.getId(), onDate);
-        if(row != null)
-        {
-            Set<PaymentSchedule> all = loan.getPaymentSchedules();
-            for (PaymentSchedule schedule: all)
-            {
-                collectedInterestDisbursed += schedule.getCollectedInterestPayment();
-                collectedPenaltyDisbursed += schedule.getCollectedPenaltyPayment();
+            if(lastSummary != null){
+                daysInPeriod = DateUtils.getDifferenceDays(onDate, lastSummary.getOnDate());
+                accrue = new Accrue();
+                accrue.setLoan(loan);
+                accrue.setDaysInPeriod(daysInPeriod);
+                accrue.setFromDate(DateUtils.subtract(lastSummary.getOnDate(), DateUtils.DAY,1));
+                accrue.setToDate(DateUtils.subtract(onDate, DateUtils.DAY,1));
             }
 
-            for (int i=0; i < row.size(); i++)
+            List<PaymentSchedule> row = scheduleService.getRowsUntilOnDateByLoanId(loan.getId(), onDate);
+            if(row != null && row.size() >= 1)
             {
-                totalDisbursement += row.get(i).getDisbursement();
-                totalCollectedInterestPayment += row.get(i).getCollectedInterestPayment();
-                totalCollectedPenaltyPayment += row.get(i).getCollectedPenaltyPayment();
-                totalPrincipalPayment += row.get(i).getPrincipalPayment();
-            }
-
-            summary.setPrincipalPayment(row.get(row.size()-1).getPrincipalPayment());
-            summary.setCollectedInterestPayment(row.get(row.size()-1).getCollectedInterestPayment());
-            summary.setCollectedPenaltyPayment(row.get(row.size()-1).getCollectedPenaltyPayment());
-            summary.setDisbursement(row.get(row.size()-1).getDisbursement());
-
-            List<Payment> payments = paymentService.getRowsUntilOnDateByLoanId(loan.getId(), onDate);
-            for (Payment payment: payments)
-            {
-                totalPrincipalPaid += payment.getPrincipal();
-                totalInterestPaid += payment.getInterest();
-                totalPenaltyPaid += payment.getPenalty();
-            }
-
-            List<Payment> paymentsDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), onDate);
-            if(paymentsDayBeforeOnDate != null)
-            {
-                for (Payment payment: paymentsDayBeforeOnDate
-                     ) {
-                    principalPaid += payment.getPrincipal();
-                    interestPaid += payment.getInterest();
-                    penaltyPaid += payment.getPenalty();
-                }
-            }
-
-            summary.setDaysInPeriod(daysInPeriod);
-            summary.setTotalDisbursement(totalDisbursement);
-            summary.setTotalCollectedInterestPayment(totalCollectedInterestPayment);
-            summary.setTotalCollectedPenaltyPayment(totalCollectedPenaltyPayment);
-            summary.setCollectedInterestDisbursed(collectedInterestDisbursed);
-            summary.setCollectedPenaltyDisbursed(collectedPenaltyDisbursed);
-            summary.setTotalPrincipalPaid(totalPrincipalPaid);
-            summary.setTotalPrincipalPayment(totalPrincipalPayment);
-            summary.setPrincipalPaid(principalPaid);
-            summary.setInterestPaid(interestPaid);
-            summary.setPenaltyPaid(penaltyPaid);
-            summary.setTotalInterestPaid(totalInterestPaid);
-            summary.setTotalPenaltyPaid(totalPenaltyPaid);
-            principalOutstanding = totalDisbursement - totalPrincipalPaid;
-            principalOverdue = totalPrincipalPayment - totalPrincipalPaid - totalPrincipalWriteOff;
-            summary.setPrincipalOverdue(principalOverdue);
-            summary.setPrincipalOutstanding(principalOutstanding);
-            if(lastSummary != null)
-            {
-                interestAccrued = calculateInterestAccrued(lastSummary.getPrincipalOutstanding(), term, daysInPeriod);
-                totalInterestAccrued += interestAccrued + lastSummary.getTotalInterestAccrued();
-                totalInterestAccruedOnInterestPayment = lastSummary.getTotalInterestAccruedOnInterestPayment();
-
-                if(row.get(row.size()-1).getExpectedDate().compareTo(DateUtils.subtract(onDate, DateUtils.DAY,1)) == 0)
+                Set<PaymentSchedule> all = loan.getPaymentSchedules();
+                for (PaymentSchedule schedule: all)
                 {
-                    interestPayment = totalInterestAccrued - lastSummary.getTotalInterestAccruedOnInterestPayment();
-                    totalInterestAccruedOnInterestPayment = totalInterestAccrued;
+                    collectedInterestDisbursed += schedule.getCollectedInterestPayment();
+                    collectedPenaltyDisbursed += schedule.getCollectedPenaltyPayment();
                 }
 
-                totalInterestPayment += interestPayment + lastSummary.getTotalInterestPayment();
+                for (int i=0; i < row.size(); i++)
+                {
+                    totalDisbursement += row.get(i).getDisbursement();
+                    totalCollectedInterestPayment += row.get(i).getCollectedInterestPayment();
+                    totalCollectedPenaltyPayment += row.get(i).getCollectedPenaltyPayment();
+                    totalPrincipalPayment += row.get(i).getPrincipalPayment();
+                }
 
-                penaltyAccrued = calculatePenaltyAccrued(lastSummary.getPrincipalOverdue(), lastSummary.getInterestOverdue(), term, daysInPeriod);
-                totalPenaltyAccrued += penaltyAccrued + lastSummary.getTotalPenaltyAccrued();
+                summary.setPrincipalPayment(row.get(row.size()-1).getPrincipalPayment());
+                summary.setCollectedInterestPayment(row.get(row.size()-1).getCollectedInterestPayment());
+                summary.setCollectedPenaltyPayment(row.get(row.size()-1).getCollectedPenaltyPayment());
+                summary.setDisbursement(row.get(row.size()-1).getDisbursement());
+
+                List<Payment> payments = paymentService.getRowsUntilOnDateByLoanId(loan.getId(), onDate);
+                for (Payment payment: payments)
+                {
+                    totalPrincipalPaid += payment.getPrincipal();
+                    totalInterestPaid += payment.getInterest();
+                    totalPenaltyPaid += payment.getPenalty();
+                }
+
+                List<Payment> paymentsDayBeforeOnDate = paymentService.getRowDayBeforeOnDateByLoanId(loan.getId(), onDate);
+                if(paymentsDayBeforeOnDate != null)
+                {
+                    for (Payment payment: paymentsDayBeforeOnDate
+                            ) {
+                        principalPaid += payment.getPrincipal();
+                        interestPaid += payment.getInterest();
+                        penaltyPaid += payment.getPenalty();
+                    }
+                }
+
+                summary.setDaysInPeriod(daysInPeriod);
+                summary.setTotalDisbursement(totalDisbursement);
+                summary.setTotalCollectedInterestPayment(totalCollectedInterestPayment);
+                summary.setTotalCollectedPenaltyPayment(totalCollectedPenaltyPayment);
+                summary.setCollectedInterestDisbursed(collectedInterestDisbursed);
+                summary.setCollectedPenaltyDisbursed(collectedPenaltyDisbursed);
+                summary.setTotalPrincipalPaid(totalPrincipalPaid);
+                summary.setTotalPrincipalPayment(totalPrincipalPayment);
+                summary.setPrincipalPaid(principalPaid);
+                summary.setInterestPaid(interestPaid);
+                summary.setPenaltyPaid(penaltyPaid);
+                summary.setTotalInterestPaid(totalInterestPaid);
+                summary.setTotalPenaltyPaid(totalPenaltyPaid);
+                principalOutstanding = totalDisbursement - totalPrincipalPaid;
+                principalOverdue = totalPrincipalPayment - totalPrincipalPaid - totalPrincipalWriteOff;
+                summary.setPrincipalOverdue(principalOverdue);
+                summary.setPrincipalOutstanding(principalOutstanding);
+                if(lastSummary != null)
+                {
+                    interestAccrued = calculateInterestAccrued(lastSummary.getPrincipalOutstanding(), term, daysInPeriod);
+                    totalInterestAccrued += interestAccrued + lastSummary.getTotalInterestAccrued();
+                    totalInterestAccruedOnInterestPayment = lastSummary.getTotalInterestAccruedOnInterestPayment();
+
+                    if(row.get(row.size()-1).getExpectedDate().compareTo(DateUtils.subtract(onDate, DateUtils.DAY,1)) == 0)
+                    {
+                        interestPayment = totalInterestAccrued - lastSummary.getTotalInterestAccruedOnInterestPayment();
+                        totalInterestAccruedOnInterestPayment = totalInterestAccrued;
+                    }
+
+                    totalInterestPayment += interestPayment + lastSummary.getTotalInterestPayment();
+
+                    penaltyAccrued = calculatePenaltyAccrued(lastSummary.getPrincipalOverdue(), lastSummary.getInterestOverdue(), term, daysInPeriod);
+                    totalPenaltyAccrued += penaltyAccrued + lastSummary.getTotalPenaltyAccrued();
+                }
+
+                else
+                {
+                    interestAccrued = calculateInterestAccrued(principalOutstanding, term, daysInPeriod);
+                    totalInterestAccrued = interestAccrued;
+                    totalInterestAccruedOnInterestPayment = interestPayment;
+
+                    penaltyAccrued = calculatePenaltyAccrued(0.0, 0.0,term, daysInPeriod);
+                    totalPenaltyAccrued = penaltyAccrued;
+                }
+
+                summary.setInterestAccrued(interestAccrued);
+                summary.setTotalInterestAccrued(totalInterestAccrued);
+                summary.setTotalInterestAccruedOnInterestPayment(totalInterestAccruedOnInterestPayment);
+                summary.setInterestPayment(interestPayment);
+                summary.setTotalInterestPayment(totalInterestPayment);
+                interestOutstanding = totalInterestAccrued + collectedInterestDisbursed - totalInterestPaid;
+                summary.setInterestOutstanding(interestOutstanding);
+                interestOverdue = totalInterestPayment - totalInterestPaid;
+                summary.setInterestOverdue(interestOverdue);
+                summary.setPenaltyAccrued(penaltyAccrued);
+                summary.setTotalPenaltyAccrued(totalPenaltyAccrued);
+                penaltyOverdue = totalPenaltyAccrued + totalCollectedPenaltyPayment - penaltyPaid;
+                summary.setPenaltyOverdue(penaltyOverdue);
+                penaltyOutstanding = totalPenaltyAccrued + collectedPenaltyDisbursed - penaltyPaid;
+                summary.setPenaltyOutstanding(penaltyOutstanding);
+                //---------------------------------------------------
+                summary.setPrincipalWriteOff(principalWriteOff);
+                summary.setTotalPrincipalWriteOff(totalPrincipalWriteOff);
+                if(accrue!=null)
+                {
+                    accrue.setInterestAccrued(interestAccrued);
+                    accrue.setPenaltyAccrued(penaltyAccrued);
+                    int numberOfDays = (term.getDaysInYearMethod().getId() == 1? 365:360);
+                    accrue.setPenaltyOnPrincipalOverdue(principalOverdue*term.getPenaltyOnPrincipleOverdueRateValue()/100*daysInPeriod/numberOfDays);
+                    accrue.setPenaltyOnInterestOverdue(interestOverdue*term.getPenaltyOnInterestOverdueRateValue()/100*daysInPeriod/numberOfDays);
+                    accrue.setLastInstPassed(false);
+                    accrueService.add(accrue);
+                }
+
             }
-
-            else
-            {
-                interestAccrued = calculateInterestAccrued(principalOutstanding, term, daysInPeriod);
-                totalInterestAccrued = interestAccrued;
-                totalInterestAccruedOnInterestPayment = interestPayment;
-
-                penaltyAccrued = calculatePenaltyAccrued(0.0, 0.0,term, daysInPeriod);
-                totalPenaltyAccrued = penaltyAccrued;
-            }
-
-            summary.setInterestAccrued(interestAccrued);
-            summary.setTotalInterestAccrued(totalInterestAccrued);
-            summary.setTotalInterestAccruedOnInterestPayment(totalInterestAccruedOnInterestPayment);
-            summary.setInterestPayment(interestPayment);
-            summary.setTotalInterestPayment(totalInterestPayment);
-            interestOutstanding = totalInterestAccrued + collectedInterestDisbursed - totalInterestPaid;
-            summary.setInterestOutstanding(interestOutstanding);
-            interestOverdue = totalInterestPayment - totalInterestPaid;
-            summary.setInterestOverdue(interestOverdue);
-            summary.setPenaltyAccrued(penaltyAccrued);
-            summary.setTotalPenaltyAccrued(totalPenaltyAccrued);
-            penaltyOverdue = totalPenaltyAccrued + totalCollectedPenaltyPayment - penaltyPaid;
-            summary.setPenaltyOverdue(penaltyOverdue);
-            penaltyOutstanding = totalPenaltyAccrued + collectedPenaltyDisbursed - penaltyPaid;
-            summary.setPenaltyOutstanding(penaltyOutstanding);
-            //---------------------------------------------------
-            summary.setPrincipalWriteOff(principalWriteOff);
-            summary.setTotalPrincipalWriteOff(totalPrincipalWriteOff);
-            if(accrue!=null)
-            {
-                accrue.setInterestAccrued(interestAccrued);
-                accrue.setPenaltyAccrued(penaltyAccrued);
-                int numberOfDays = (term.getDaysInYearMethod().getId() == 1? 365:360);
-                accrue.setPenaltyOnPrincipalOverdue(principalOverdue*term.getPenaltyOnPrincipleOverdueRateValue()/100*daysInPeriod/numberOfDays);
-                accrue.setPenaltyOnInterestOverdue(interestOverdue*term.getPenaltyOnInterestOverdueRateValue()/100*daysInPeriod/numberOfDays);
-                accrue.setLastInstPassed(false);
-                accrueService.add(accrue);
-            }
+            loanDetailedSummaryService.add(summary);
+            //createTaskIfOverdue(summary, onDate);
 
         }
-        loanDetailedSummaryService.add(summary);
-        createTaskIfOverdue(summary, onDate);
+        catch(NullPointerException ex)
+        {
+            System.out.println("Loan id: " + loan.getId());
+            System.out.println("Class: " + ex.getClass().getSimpleName());
+            System.out.println("Message: " + ex.getMessage());
+        }
     }
 
     private List<Date> getCriticalDates(Loan loan, Date regDate)
