@@ -16,6 +16,8 @@ import kg.gov.mf.loan.manage.service.process.AccrueService;
 import kg.gov.mf.loan.manage.service.process.LoanDetailedSummaryService;
 import kg.gov.mf.loan.manage.util.DateUtils;
 import kg.gov.mf.loan.process.model.JobItem;
+import kg.gov.mf.loan.process.model.JobsLog;
+import kg.gov.mf.loan.process.service.JobsLogService;
 import kg.gov.mf.loan.task.model.Task;
 import kg.gov.mf.loan.task.model.TaskPriority;
 import kg.gov.mf.loan.task.model.TaskStatus;
@@ -55,6 +57,9 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
 
     @Autowired
     UserService userService;
+
+    @Autowired
+    JobsLogService jobsLogService;
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
@@ -269,9 +274,16 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
         }
         catch(NullPointerException ex)
         {
-            System.out.println("Loan id: " + loan.getId());
-            System.out.println("Class: " + ex.getClass().getSimpleName());
-            System.out.println("Message: " + ex.getMessage());
+            Calendar now = Calendar.getInstance();
+            Date today = now.getTime();
+            JobsLog log = new JobsLog();
+            log.setOnDate(today);
+            log.setJobName(this.getClass().getSimpleName());
+            log.setModel("Loan");
+            log.setEntityId(loan.getId());
+            log.setClassName(ex.getStackTrace()[0].getClassName() + ":" + ex.getStackTrace()[0].getMethodName() + ":" + ex.getStackTrace()[0].getLineNumber());
+            log.setMessage(ex.getMessage());
+            jobsLogService.add(log);
         }
     }
 
