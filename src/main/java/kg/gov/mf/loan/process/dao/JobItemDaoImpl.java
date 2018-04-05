@@ -6,4 +6,9 @@ import org.springframework.stereotype.Repository;
 
 @Repository("jobDao")
 public class JobItemDaoImpl extends GenericDaoImpl<JobItem> implements JobItemDao{
+
+    @Override
+    public JobItem getByName(String name){
+        return (JobItem) getCurrentSession().createQuery("from JobItem where name ='"+ name+"'").uniqueResult();
+    }
 }
