@@ -310,6 +310,18 @@ public class CalculateLoanDetailedSummaryForEachLoanJob implements Job {
             result.add(DateUtils.add(payment.getPaymentDate(), DateUtils.DAY, 1));
         }
 
+        Set<PaymentSchedule> schedules = loan.getPaymentSchedules();
+        for(PaymentSchedule schedule : schedules)
+        {
+            result.add(DateUtils.add(schedule.getExpectedDate(), DateUtils.DAY, 1));
+        }
+
+        Set<CreditTerm> terms = loan.getCreditTerms();
+        for(CreditTerm term:terms)
+        {
+            result.add(DateUtils.add(term.getStartDate(), DateUtils.DAY, 1));
+        }
+
         List<Date> dates = new ArrayList<>();
         for(Date date: result)
             dates.add(date);
