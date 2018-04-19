@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
+
 @Service("jobService")
 @Transactional
 public class JobItemServiceImpl extends GenericServiceImpl<JobItem> implements JobItemService {
@@ -18,5 +20,10 @@ public class JobItemServiceImpl extends GenericServiceImpl<JobItem> implements J
     public JobItem getByName(String name)
     {
         return this.jobItemDao.getByName(name);
+    }
+
+    @Override
+    public void runDailyCalculateProcedure(Date date){
+        this.jobItemDao.runDailyCalculateProcedure(date);
     }
 }

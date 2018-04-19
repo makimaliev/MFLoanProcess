@@ -2,7 +2,10 @@ package kg.gov.mf.loan.process.dao;
 
 import kg.gov.mf.loan.manage.dao.GenericDaoImpl;
 import kg.gov.mf.loan.process.model.JobItem;
+import org.hibernate.Query;
 import org.springframework.stereotype.Repository;
+
+import java.util.Date;
 
 @Repository("jobDao")
 public class JobItemDaoImpl extends GenericDaoImpl<JobItem> implements JobItemDao{
@@ -10,5 +13,14 @@ public class JobItemDaoImpl extends GenericDaoImpl<JobItem> implements JobItemDa
     @Override
     public JobItem getByName(String name){
         return (JobItem) getCurrentSession().createQuery("from JobItem where name ='"+ name+"'").uniqueResult();
+    }
+
+    @Override
+    public void runDailyCalculateProcedure(Date date)
+    {
+        Query query = getCurrentSession().createSQLQuery("CALL runCalculateForDate(:inDate)")
+                 .setParameter("inDate",date);
+
+        System.out.println(query.uniqueResult());
     }
 }
