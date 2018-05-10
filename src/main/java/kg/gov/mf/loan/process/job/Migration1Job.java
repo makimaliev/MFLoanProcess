@@ -209,6 +209,13 @@ public class Migration1Job implements Job{
     @Autowired
     DistrictService districtService;
 
+
+    @Autowired
+    CurrencyRateService currencyRateService;
+
+    @Autowired
+    FloatingRateService floatingRateService;
+
     Set<String> errorList = new HashSet<String>();
 
     Map<Long,OrgForm> organizationFormMap = new HashMap<Long,OrgForm>();
@@ -338,6 +345,14 @@ public class Migration1Job implements Job{
         boolean collectionMigrateDone = inProcess;
         if(!collectionMigrateDone) collectionMigrateDone = this.collectionPhaseTypeMigrate(connection);
 
+
+        boolean currencyRateMigrateDone = inProcess;
+        if(!currencyRateMigrateDone) currencyRateMigrateDone = this.currencyRateMigrate(connection);
+
+        boolean floatingRateMigrateDone = inProcess;
+        if(!floatingRateMigrateDone) floatingRateMigrateDone = this.floatingRateMigrate(connection);
+
+
         boolean debtorMigrationDone = inProcess;
         if(!debtorMigrationDone) debtorMigrationDone = this.debtorMigrate(connection);
 
@@ -357,51 +372,6 @@ public class Migration1Job implements Job{
 //        }
 //
 //
-//        System.out.println(" Области :");
-//        for (Map.Entry<Long, Region> entry : regionMap.entrySet()) {
-//            Long key = entry.getKey();
-//            Region value = entry.getValue();
-//
-//            System.out.println(" ID == "+key+" == "+value.getName());
-//
-//        }
-//
-//
-//
-//        System.out.println(" Районы :");
-//        for (Map.Entry<Long, District> entry : districtMap.entrySet()) {
-//            Long key = entry.getKey();
-//            District value = entry.getValue();
-//
-//            System.out.println(" ID == "+key+" == "+value.getName()+" == "+value.getRegion().getName());
-//
-//        }
-//
-//
-//        System.out.println(" Айыл окмоту :");
-//        for (Map.Entry<Long, Aokmotu> entry : aokmotuMap.entrySet()) {
-//            Long key = entry.getKey();
-//            Aokmotu value = entry.getValue();
-//
-//            System.out.println(" ID == "+key+" == "+value.getName()+" == "+value.getDistrict().getName());
-//
-//        }
-//
-//        System.out.println(" Село :");
-//        for (Map.Entry<Long, Village> entry : villageMap.entrySet()) {
-//            Long key = entry.getKey();
-//            Village value = entry.getValue();
-//
-//            System.out.println(" ID == "+key+" == "+value.getName()+" == "+value.getAokmotu().getName());
-//
-//        }
-
-
-
-
-
-
-
     }
 
 
@@ -426,20 +396,21 @@ public class Migration1Job implements Job{
                 {
                     // sql code get person data
                     Statement st = connection.createStatement();
-                    rs = st.executeQuery("select\n" +
-                            " aokmotu.id  as aokmotu_id,\n" +
-                            "  selo.id  as selo_id,\n" +
-                            " \n " +
-                            " *\n " +
-                            " from person, person_details,address,phone,aokmotu,selo \n " +
-                            " where person.id = person_details.person_id AND aokmotu.region = address.region_code and address.district_code = aokmotu.district and address.a_okmotu_code = aokmotu.aokmotu AND " +
-                            " selo.region = address.region_code and address.district_code = selo.district and address.a_okmotu_code = selo.aokmotu and address.selo = selo.selo_code AND \n" +
+                    rs = st.executeQuery("select (select aokmotu.id from aokmotu where aokmotu.region =  address.region_code and aokmotu.district = address.district_code limit 1) as aokmotu_id,\n" +
+                            "      (select selo.id from selo where selo.region = address.region_code and selo.district = address.district_code limit 1) as selo_id,\n" +
+                            "\n" +
+                            "      * from person, person_details,address,phone\n" +
+                            "where person.id = person_details.person_id AND\n" +
                             "      address.user_id = person.id AND address.contact_type = 2 AND\n" +
-                            "      phone.user_id = person.id and phone.contact_type = 2 order by person.id limit 100 OFFSET 1000");
+                            "      phone.user_id = person.id and phone.contact_type = 2 order by person.id");
                     if(rs != null)
                     {
+                        int counter=0;
                         while (rs.next())
                         {
+                            counter++;
+
+                            System.out.println(" debtor counter = "+counter );
 
                             boolean isPerson = true;
 
@@ -451,7 +422,7 @@ public class Migration1Job implements Job{
                             if(rs.getInt("region")==0)
                                 errorList.add(" debtor region error "+rs.getInt("person_id"));
                             else
-                                region = regionMap.get(rs.getInt("region"));
+                                region = regionMap.get((long)rs.getInt("region"));
 
                             address.setRegion(region);
 
@@ -460,14 +431,14 @@ public class Migration1Job implements Job{
                             if(rs.getInt("district")==0)
                                 errorList.add(" debtor district error "+rs.getInt("person_id"));
                             else
-                                district = districtMap.get(rs.getInt("district"));
+                                district = districtMap.get((long)rs.getInt("district"));
 
                             address.setDistrict(district);
 
                             Aokmotu aokmotu = new Aokmotu();
                             if(rs.getInt("aokmotu_id")>0)
                             {
-                                aokmotu = aokmotuMap.get(rs.getInt("aokmotu_id"));
+                                aokmotu = aokmotuMap.get((long)rs.getInt("aokmotu_id"));
                                 address.setAokmotu(aokmotu);
                             }
                             else
@@ -481,7 +452,7 @@ public class Migration1Job implements Job{
                             Village village = new Village();
                             if(rs.getInt("selo_id")>0)
                             {
-                                village = villageMap.get(rs.getInt("selo_id"));
+                                village = villageMap.get((long)rs.getInt("selo_id"));
                                 address.setVillage(village);
                             }
                             else
@@ -501,6 +472,7 @@ public class Migration1Job implements Job{
                             //contact
                             // contact
                             //contact
+
                             Contact contact = new Contact();
 
                             if(!(rs.getString("number")=="" || rs.getString("number")==null))
@@ -536,6 +508,8 @@ public class Migration1Job implements Job{
 
 
                             }
+
+                            if(rs.getString("title").contains("\"")) isPerson = false;
 
                             identityDoc.setIdentityDocType(identityDocTypeMap.get(rs.getLong("document_type"))); // Passport
 
@@ -723,7 +697,6 @@ public class Migration1Job implements Job{
                                                             System.out.println("Connection Failed! Check output console");
                                                             ex.printStackTrace();
                                                             errorList.add(" scehdule error" + ex);
-                                                            return migrationSuccess;
                                                         }
 
                                                     }
@@ -815,7 +788,7 @@ public class Migration1Job implements Job{
                                                             System.out.println("Connection Failed! Check output console");
                                                             ex.printStackTrace();
                                                             errorList.add(" credit term error 0" + ex);
-                                                            return migrationSuccess;
+
                                                         }
 
                                                     }
@@ -854,6 +827,7 @@ public class Migration1Job implements Job{
                                                                     payment.setPenalty(rsPayment.getDouble("penalty"));
                                                                     payment.setFee((double)0);
                                                                     payment.setTotalAmount(rsPayment.getDouble("payments_sum"));
+                                                                    payment.setExchange_rate(rsPayment.getDouble("exchange_rate"));
                                                                     payment.setPaymentType( paymentTypeMap.get((long)rsPayment.getInt("payment_type")));
 
 
@@ -885,7 +859,6 @@ public class Migration1Job implements Job{
                                                             System.out.println("Connection Failed! Check output console");
                                                             ex.printStackTrace();
                                                             errorList.add(" credit term error 0" + ex);
-                                                            return migrationSuccess;
                                                         }
 
                                                     }
@@ -1230,7 +1203,6 @@ public class Migration1Job implements Job{
                                                             System.out.println("Connection Failed! Check output console");
                                                             ex.printStackTrace();
                                                             errorList.add(" credit term error 0" + ex);
-                                                            return migrationSuccess;
                                                         }
 
                                                     }
@@ -1279,7 +1251,6 @@ public class Migration1Job implements Job{
                                                             System.out.println("Connection Failed! Check output console");
                                                             ex.printStackTrace();
                                                             errorList.add(" credit term error 0" + ex);
-                                                            return migrationSuccess;
                                                         }
 
                                                     }
@@ -1853,7 +1824,6 @@ public class Migration1Job implements Job{
                 catch (SQLException ex)
                 {
                     errorList.add("debtor migration error: query ="+ex);
-                    return migrationSuccess;
                 }
 
             }
@@ -1977,7 +1947,10 @@ public class Migration1Job implements Job{
                 {
                     System.out.println("Connection Failed! Check output console");
                     ex.printStackTrace();
-                    return migrationSuccess;
+
+                    errorList.add(ex.toString());
+
+                    return false;
                 }
 
             }
@@ -2012,8 +1985,8 @@ public class Migration1Job implements Job{
                         {
                             CreditOrder creditOrder = new CreditOrder();
 
-                            if(rs.getString("number").length()>19)
-                                creditOrder.setRegNumber(rs.getString("number").substring(0,19));
+                            if(rs.getString("number").length()>100)
+                                creditOrder.setRegNumber(rs.getString("number").substring(0,100));
                             else creditOrder.setRegNumber(rs.getString("number"));
 
                             if(rs.getDate("date")!=null)
@@ -2042,7 +2015,8 @@ public class Migration1Job implements Job{
                 {
                     System.out.println("Connection Failed! Check output console");
                     ex.printStackTrace();
-                    return migrationSuccess;
+                    errorList.add(ex.toString());
+                    return false;
                 }
 
             }
@@ -2054,10 +2028,146 @@ public class Migration1Job implements Job{
         catch(Exception ex)
         {
             System.out.println(" Error in User migration "+ex);
+            errorList.add(ex.toString());
+            return false;
+
         }
 
         return migrationSuccess;
     }
+
+    private boolean currencyRateMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from currency_rates ORDER BY id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            CurrencyRate currencyRate = new CurrencyRate();
+
+                            if(rs.getDate("date")!=null)
+                                currencyRate.setDate(rs.getDate("date"));
+                            else errorList.add(" currency with no date"+rs.getLong("id"));
+
+
+                            OrderTermCurrency currencyType = currencyMap.get((long)rs.getInt("currency_type"));
+
+
+
+                            if(currencyType!=null) currencyRate.setCurrency(currencyType);
+
+                            currencyRate.setRate(rs.getDouble("exchange_rate"));
+                            currencyRate.setStatus(rs.getShort("record_status"));
+
+                            this.currencyRateService.create(currencyRate);
+
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    errorList.add(ex.toString());
+                    return false;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in currency rate migration "+ex);
+            errorList.add(ex.toString());
+            return false;
+
+        }
+
+        return migrationSuccess;
+    }
+
+    private boolean floatingRateMigrate(Connection connection)
+    {
+        boolean migrationSuccess = false;
+
+        try
+        {
+            if (connection != null) {
+                ResultSet rs = null;
+                try
+                {
+                    Statement st = connection.createStatement();
+                    rs = st.executeQuery("select * from percent_rates ORDER BY id");
+                    if(rs != null)
+                    {
+                        while (rs.next())
+                        {
+                            FloatingRate floatingRate = new FloatingRate();
+
+                            if(rs.getDate("date")!=null)
+                                floatingRate.setDate(rs.getDate("date"));
+                            else errorList.add(" rate with no date"+rs.getLong("id"));
+
+
+                            OrderTermFloatingRateType rateType = rateTypeMap.get((long)rs.getInt("type"));
+
+
+
+                            if(rateType!=null) floatingRate.setRateType(rateType);
+
+                            floatingRate.setRate(rs.getDouble("rate"));
+                            floatingRate.setStatus(rs.getShort("record_status"));
+
+                            this.floatingRateService.create(floatingRate);
+
+                        }
+
+                        migrationSuccess = true;
+                        rs.close();
+                        st.close();
+                    }
+                }
+                catch (SQLException ex)
+                {
+                    System.out.println("Connection Failed! Check output console");
+                    ex.printStackTrace();
+                    errorList.add(ex.toString());
+                    return false;
+                }
+
+            }
+            else
+            {
+                System.out.println("Failed to make connection!");
+            }
+        }
+        catch(Exception ex)
+        {
+            System.out.println(" Error in currency rate migration "+ex);
+            errorList.add(ex.toString());
+            return false;
+
+        }
+
+        return migrationSuccess;
+    }
+
 
     private boolean workSectorMigrate(Connection connection)
     {
@@ -2786,7 +2896,7 @@ public class Migration1Job implements Job{
                             User user = new User();
 
                             user.setUsername(rs.getString("login"));
-                            user.setPassword(rs.getString("password"));
+                            user.setPassword("admin");
                             user.setEnabled(rs.getShort("status")==1 ? true : false);
 
 
@@ -2815,9 +2925,9 @@ public class Migration1Job implements Job{
                                 Address address = new Address();
 
                                 Region region = new Region();
-                                if(this.regionService.findByCode(String.valueOf(rs.getInt("region")))!=null)
-                                    region = this.regionService.findByCode(String.valueOf(rs.getInt("region")));
-                                else region = this.regionService.findByCode("2");
+                                if(this.regionService.findById((long)rs.getInt("region"))!=null)
+                                    region = this.regionService.findById((long)rs.getInt("region"));
+                                else region = this.regionService.findById((long)2);
 
                                 address.setRegion(region); // Bishkek
 
@@ -2923,7 +3033,16 @@ public class Migration1Job implements Job{
                                 position.setDepartment(department);
                                 position.setName(rs.getString("position_name")+"("+department.getName()+")");
 
-                                positionService.create(position);
+                            boolean positionExists=false;
+
+                            for (Position positionInLoop: positionService.findAll()
+                                 )
+                            {
+                                if(positionInLoop.getName().equals(position.getName())) positionExists=true;
+
+                            }
+
+                            if(!positionExists) positionService.create(position);
                         }
 
                         migrationSuccess = true;
@@ -3021,7 +3140,7 @@ public class Migration1Job implements Job{
                     contact.setName("0312 666033");
 
                     Address address = new Address();
-                    address.setRegion(this.regionService.findByCode("2")); // Bishkek
+                    address.setRegion(this.regionService.findById((long)2)); // Bishkek
                     address.setDistrict(this.districtService.findById(48)); // Pervomayskiy raion
                     address.setLine("б.Эркиндик 58-а");
 
@@ -3193,15 +3312,9 @@ public class Migration1Job implements Job{
                 try
                 {
                     Statement st = connection.createStatement();
-                    rs = st.executeQuery("select\n" +
-                            "  *,\n" +
-                            "  (select distinct aokmotu.title from aokmotu where\n" +
-                            "  aokmotu.aokmotu = selo.aokmotu AND\n" +
-                            "    aokmotu.district = selo.district AND\n" +
-                            "    aokmotu.region = selo.region\n" +
-                            "    limit 1\n" +
-                            "  ) as aokmotu_title\n" +
-                            "from selo");
+                    rs = st.executeQuery("select  selo.*,\n" +
+                            "      (select id from aokmotu where aokmotu.district = selo.district and selo.aokmotu = aokmotu.aokmotu and selo.region = aokmotu.region limit 1) as aokmotu_id\n" +
+                            "from selo order by id");
                     if(rs != null)
                     {
                         int count =0;
@@ -3213,15 +3326,15 @@ public class Migration1Job implements Job{
                                 Village village  = new Village();
 
                                 village.setName(rs.getString("title"));
-                                village.setCode((String.valueOf(rs.getInt("selo_code"))));
+                                village.setCode((String.valueOf(rs.getLong("id"))));
 
                                 Aokmotu aokmotu = new Aokmotu();
 
-                                if(rs.getString("aokmotu_title")!=null)
+                                if(rs.getLong("aokmotu_id")>0)
                                 {
-                                    aokmotu = this.aokmotuService.findByName(rs.getString("aokmotu_title"));
+                                    aokmotu = aokmotuMap.get(rs.getLong("aokmotu_id"));
                                 }
-                                else aokmotu = this.aokmotuService.findById(1);
+                                else aokmotu = aokmotuMap.get((long)1);
 
                                 village.setAokmotu(aokmotu);
 
@@ -3281,7 +3394,7 @@ public class Migration1Job implements Job{
                             "    where district_codes.district_code = aokmotu.district AND\n" +
                             "        district_codes.region_code = aokmotu.region limit 1\n" +
                             "     ) as district_id\n" +
-                            "from aokmotu");
+                            "from aokmotu order by id");
                     if(rs != null)
                     {
                         long counter=0;
@@ -3302,7 +3415,7 @@ public class Migration1Job implements Job{
                             if(rs.getInt("district_id")==19) district = districtMap.get((long)52);
 
                             aokmotu.setDistrict(district);
-                            aokmotu.setCode(String.valueOf(rs.getInt("aokmotu")));
+                            aokmotu.setCode(String.valueOf(rs.getInt("id")));
 
                             aokmotuService.create(aokmotu);
 
@@ -3439,7 +3552,7 @@ public class Migration1Job implements Job{
                     ex.printStackTrace();
 
                     errorList.add("region migration error: query"+ex);
-                    return migrationSuccess;
+                    return false;
                 }
 
             }
@@ -3534,7 +3647,7 @@ public class Migration1Job implements Job{
 */
 
             connection = DriverManager.getConnection(
-                    "jdbc:postgresql://150.0.0.4:5432/migration2", "postgres",
+                    "jdbc:postgresql://localhost:5432/migration", "postgres",
                     "armad27raptor");
         } catch (SQLException e) {
             errorList.add("connection error"+e);
