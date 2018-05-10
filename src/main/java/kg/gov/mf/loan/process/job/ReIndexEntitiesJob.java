@@ -27,7 +27,7 @@ public class ReIndexEntitiesJob implements Job {
 
     private void indexEntities()
     {
-        debtorService.indexEntity();
+        //debtorService.indexEntity();
     }
 
     private JobItem getJobItemFromJobCaller(JobExecutionContext context)
