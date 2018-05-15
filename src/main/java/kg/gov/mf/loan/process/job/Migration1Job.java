@@ -402,7 +402,7 @@ public class Migration1Job implements Job{
                             "      * from person, person_details,address,phone\n" +
                             "where person.id = person_details.person_id AND\n" +
                             "      address.user_id = person.id AND address.contact_type = 2 AND\n" +
-                            "      phone.user_id = person.id and phone.contact_type = 2 order by person.id");
+                            "      phone.user_id = person.id and phone.contact_type = 2 order by person.id ");
                     if(rs != null)
                     {
                         int counter=0;
@@ -1705,6 +1705,8 @@ public class Migration1Job implements Job{
                                                                         if(rsCollection.getDate("result_date")!=null)
                                                                             collectionPhase.setCloseDate(rsCollection.getDate("result_date"));
 
+                                                                    Set<PhaseDetails> allPhaseDetails = new HashSet<PhaseDetails>();
+
                                                                     try
                                                                     {
                                                                         Statement stCollectionDetails = connection.createStatement();
@@ -1725,7 +1727,7 @@ public class Migration1Job implements Job{
                                                                                     Loan phaseLoan = debtorLoans.get(rsCollectionDetails.getLong("credit_id"));
                                                                                     phaseLoans.add(phaseLoan);
 
-                                                                                    phaseDetails.setLoan_id(rsCollectionDetails.getLong("credit_id"));
+                                                                                    phaseDetails.setLoan_id(phaseLoan.getId());
                                                                                     phaseDetails.setStartTotalAmount(rsCollectionDetails.getDouble("debt_main")+rsCollectionDetails.getDouble("debt_percent")+rsCollectionDetails.getDouble("debt_penalty"));
                                                                                     phaseDetails.setStartPrincipal(rsCollectionDetails.getDouble("debt_main"));
                                                                                     phaseDetails.setStartInterest(rsCollectionDetails.getDouble("debt_percent"));
@@ -1737,6 +1739,7 @@ public class Migration1Job implements Job{
                                                                                     Loan phaseLoan = debtorLoans.get(rsCollectionDetails.getLong("credit_id"));
                                                                                     phaseLoans.add(phaseLoan);
 
+                                                                                    phaseDetails.setLoan_id(phaseLoan.getId());
                                                                                     phaseDetails.setCloseTotalAmount(rsCollectionDetails.getDouble("debt_main")+rsCollectionDetails.getDouble("debt_percent")+rsCollectionDetails.getDouble("debt_penalty"));
                                                                                     phaseDetails.setClosePrincipal(rsCollectionDetails.getDouble("debt_main"));
                                                                                     phaseDetails.setCloseInterest(rsCollectionDetails.getDouble("debt_percent"));
@@ -1745,10 +1748,12 @@ public class Migration1Job implements Job{
 
                                                                                 }
 
+                                                                                allPhaseDetails.add(phaseDetails);
+
                                                                             }
 
                                                                             phaseDetails.setCollectionPhase(collectionPhase);
-                                                                            collectionPhase.setPhaseDetails(phaseDetails);
+                                                                            collectionPhase.setPhaseDetails(allPhaseDetails);
 
                                                                             rsCollectionDetails.close();
                                                                             stCollectionDetails.close();
