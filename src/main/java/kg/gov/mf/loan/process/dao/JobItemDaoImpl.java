@@ -23,4 +23,14 @@ public class JobItemDaoImpl extends GenericDaoImpl<JobItem> implements JobItemDa
 
         System.out.println(query.uniqueResult());
     }
+
+    @Override
+    public void runManualCalculateProcedure(long loanId, Date date)
+    {
+        Query query = getCurrentSession().createSQLQuery("CALL calculateLoanDetailedSummaryUntilOnDate(:loan_id, :inDate, 1)")
+                .setParameter("inDate",date)
+                .setParameter("loan_id", loanId);
+
+        System.out.println(query.uniqueResult());
+    }
 }
