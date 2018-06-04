@@ -31,6 +31,6 @@ public class JobItemDaoImpl extends GenericDaoImpl<JobItem> implements JobItemDa
                 .setParameter("inDate",date)
                 .setParameter("loan_id", loanId);
 
-        System.out.println(query.uniqueResult());
+        query.executeUpdate();
     }
 }
