@@ -1306,6 +1306,8 @@ public class Migration1Job implements Job{
 
                                                 CollateralAgreement collateralAgreement = new CollateralAgreement();
 
+                                                // TODO fix duplicate owner
+
                                                 Owner guarantor = new Owner();
                                                 guarantor.setOwnerType(debtor.getOwner().getOwnerType());
                                                 guarantor.setName(debtor.getOwner().getName());
@@ -2911,7 +2913,7 @@ public class Migration1Job implements Job{
 
                                 staff.setEnabled(true);
                                 staff.setName(rs.getString("last_name")+" "+rs.getString("first_name")+ " "+rs.getString("middle_name"));
-                                staff.setOrganization(this.organizationService.findById(1));
+                                staff.setOrganization(this.organizationService.findById((long)1));
                                 Department department = this.departmentService.findById(rs.getInt("department"));
                                 staff.setDepartment(department);
 
@@ -3090,7 +3092,7 @@ public class Migration1Job implements Job{
                     rs = st.executeQuery("select * from system_type where system_type.group_id = 10 order by system_type.type_id");
                     if(rs != null)
                     {
-                        Organization gaubk = organizationService.findById(1);
+                        Organization gaubk = organizationService.findById((long)1);
 
                         while (rs.next())
                         {
