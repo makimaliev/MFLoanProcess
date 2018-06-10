@@ -1527,8 +1527,7 @@ public class Migration1Job implements Job{
 
                                                                                         collateralItemArrestFree.setDetails(details);
 
-                                                                                        collateralItem.setCollateralItemArrestFree(collateralItemArrestFree);
-
+                                                                                        collateralItemArrestFree.setCollateralItem(collateralItem);
 
                                                                                     }
 
