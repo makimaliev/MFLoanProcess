@@ -1513,7 +1513,7 @@ public class Migration1Job implements Job{
                                                                                         CollateralItemArrestFree collateralItemArrestFree = new CollateralItemArrestFree();
 
                                                                                         collateralItemArrestFree.setArrestFreeBy(rsCollateralItemArestFree.getLong("release_by"));
-                                                                                        collateralItemArrestFree.setCollateralItem(collateralItem);
+                                                                                        collateralItem.setCollateralItemArrestFree(collateralItemArrestFree);
 
                                                                                         collateralItemArrestFree.setOnDate(rsCollateralItemArestFree.getDate("release_date"));
 
@@ -1527,7 +1527,7 @@ public class Migration1Job implements Job{
 
                                                                                         collateralItemArrestFree.setDetails(details);
 
-                                                                                        collateralItemArrestFree.setCollateralItem(collateralItem);
+                                                                                        collateralItem.setCollateralItemArrestFree(collateralItemArrestFree);
 
                                                                                     }
 
