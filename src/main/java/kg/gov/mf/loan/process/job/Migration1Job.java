@@ -24,6 +24,7 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -251,6 +252,8 @@ public class Migration1Job implements Job{
     Map<Long,PhaseStatus> phaseStatusMap = new HashMap<Long,PhaseStatus>();
     Map<Long,ProcedureType> procedureTypeMap = new HashMap<Long,ProcedureType>();
     Map<Long,ProcedureStatus> procedureStatusMap = new HashMap<Long,ProcedureStatus>();
+
+    Map<Long,User> userMap = new HashMap<Long,User>();
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
@@ -801,7 +804,8 @@ public class Migration1Job implements Job{
                                                 Loan loan = new Loan();
                                                 loan.setAmount(rsLoan.getDouble("cost"));
                                                 loan.setCreditOrder(crditOrderMap.get((long)rsLoan.getInt("credit_order_id")));
-                                                loan.setSupervisorId(rsLoan.getLong("curator"));
+//                                                loan.setSupervisorId(rsLoan.getLong("curator"));
+                                                loan.setSupervisorId(userMap.get(rsLoan.getLong("curator")).getId());
                                                 loan.setLoanType(loanTypeMap.get((long)rsLoan.getInt("credit_type")));
                                                 loan.setCurrency(currencyMap.get((long)rsLoan.getInt("currency")));
                                                 loan.setRegDate(rsLoan.getDate("date"));
@@ -3144,6 +3148,8 @@ public class Migration1Job implements Job{
 
 
                             userService.create(user);
+
+                            userMap.put(rs.getLong("users.id"),user);
                         }
 
                         migrationSuccess = true;
