@@ -349,10 +349,10 @@ public class Migration1Job implements Job{
         if(!collectionMigrateDone) collectionMigrateDone = this.collectionPhaseTypeMigrate(connection);
 
 
-        boolean currencyRateMigrateDone = done;
+        boolean currencyRateMigrateDone = inProcess;
         if(!currencyRateMigrateDone) currencyRateMigrateDone = this.currencyRateMigrate(connection);
 
-        boolean floatingRateMigrateDone = done;
+        boolean floatingRateMigrateDone = inProcess;
         if(!floatingRateMigrateDone) floatingRateMigrateDone = this.floatingRateMigrate(connection);
 
 
@@ -404,7 +404,7 @@ public class Migration1Job implements Job{
                             "      (select selo.id from selo where selo.region = address.region_code and selo.district = address.district_code limit 1) as selo_id,\n" +
                             "\n" +
                             "      * from person, person_details,address,phone\n" +
-                            "where person.id < 1000 and person.id = person_details.person_id AND\n" +
+                            "where person.id < 200 and person.id = person_details.person_id AND\n" +
                             "      address.user_id = person.id AND address.contact_type = 2 AND\n" +
                             "      phone.user_id = person.id and phone.contact_type = 2 order by person.id ");
                     if(rs != null)
@@ -576,11 +576,14 @@ public class Migration1Job implements Job{
                                 chief.setDescription("");
                                 chief.setEnabled(true);
 
+
                                 Position responsible = new Position();
                                 responsible.setName("Руководитель");
+                                responsible.setDepartment(chief);
 
                                 Position accountant = new Position();
                                 accountant.setName("Гл. бухгалтер");
+                                accountant.setDepartment(chief);
 
                                 Set<Position> positions = new HashSet<Position>();
                                 positions.add(responsible);
@@ -604,7 +607,6 @@ public class Migration1Job implements Job{
 
                                     if(rs.getString("responsible")!=null) responsibleName = rs.getString("responsible");
                                     if(rs.getString("accountant")!=null) accountantName = rs.getString("accountant");
-
 
                                     Address addressOrganization = organization.getAddress();
 
@@ -1710,10 +1712,10 @@ public class Migration1Job implements Job{
                                                                     collateralItem.setCollateralItemDetails(collateralItemDetails);
                                                                     collateralItem.setCollateralItemInspectionResults(collateralItemInspectionResults);
 
-                                                                    if(collateralItem.getCollateralItemArrestFree().getId()>0)
-                                                                    {
-                                                                        System.out.println(" Arrest Free == " + collateralItem.getCollateralItemArrestFree().getDetails());
-                                                                    }
+//                                                                    if(collateralItem.getCollateralItemArrestFree().getId()>0)
+//                                                                    {
+//                                                                        System.out.println(" Arrest Free == " + collateralItem.getCollateralItemArrestFree().getDetails());
+//                                                                    }
 
 
 
@@ -3149,7 +3151,7 @@ public class Migration1Job implements Job{
 
                             userService.create(user);
 
-                            userMap.put(rs.getLong("users.id"),user);
+                            userMap.put(rs.getLong("id"),user);
                         }
 
                         migrationSuccess = true;
