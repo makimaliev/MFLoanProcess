@@ -404,7 +404,7 @@ public class Migration1Job implements Job{
                             "      (select selo.id from selo where selo.region = address.region_code and selo.district = address.district_code limit 1) as selo_id,\n" +
                             "\n" +
                             "      * from person, person_details,address,phone\n" +
-                            "where person.id < 200 and person.id = person_details.person_id AND\n" +
+                            "where person.id = person_details.person_id AND\n" +
                             "      address.user_id = person.id AND address.contact_type = 2 AND\n" +
                             "      phone.user_id = person.id and phone.contact_type = 2 order by person.id ");
                     if(rs != null)
