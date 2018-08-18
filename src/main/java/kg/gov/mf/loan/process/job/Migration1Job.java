@@ -803,7 +803,7 @@ public class Migration1Job implements Job{
                                             while (rsLoan.next())
                                             {
                                                 // loan
-                                                Loan loan = new Loan();
+                                                Loan loan = new NormalLoan();
                                                 loan.setAmount(rsLoan.getDouble("cost"));
                                                 loan.setCreditOrder(crditOrderMap.get((long)rsLoan.getInt("credit_order_id")));
 //                                                loan.setSupervisorId(rsLoan.getLong("curator"));
