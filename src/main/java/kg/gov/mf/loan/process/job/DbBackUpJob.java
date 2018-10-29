@@ -41,7 +41,7 @@ public class DbBackUpJob implements Job {
         dbBackupper();
     }
 
-    private static String UPLOADED_FOLDER =  SystemUtils.IS_OS_LINUX ? "/home/eridan/" : "c://temp//";
+    private static String UPLOADED_FOLDER =  SystemUtils.IS_OS_LINUX ? "/opt/uploads/" : "c://temp//";
 
 
     private void dbBackupper(){
