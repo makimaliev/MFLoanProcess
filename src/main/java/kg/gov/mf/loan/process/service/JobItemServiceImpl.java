@@ -31,4 +31,10 @@ public class JobItemServiceImpl extends GenericServiceImpl<JobItem> implements J
     public void runManualCalculateProcedure(long loanId, Date date){
         this.jobItemDao.runManualCalculateProcedure(loanId, date);
     }
+
+    @Override
+    public void runFixedCalculateProcedure(Date date)
+    {
+        this.jobItemDao.runFixedCalculateProcedure(date);
+    }
 }
