@@ -18,7 +18,7 @@ public class JobItemDaoImpl extends GenericDaoImpl<JobItem> implements JobItemDa
     @Override
     public void runDailyCalculateProcedure(Date date)
     {
-        Query query = getCurrentSession().createSQLQuery("CALL runCalculateForDate(:inDate)")
+        Query query = getCurrentSession().createSQLQuery("CALL runCalculateLoanDetailedSummaryForAllLoans(:inDate)")
                  .setParameter("inDate",date);
 
         System.out.println(query.uniqueResult());
