@@ -29,7 +29,7 @@ public class CalculateDailyJob implements Job {
     {
         Calendar now = Calendar.getInstance();
         Date today = now.getTime();
-        today = DateUtils.subtract(today, DateUtils.DAY,1);
+//        today = DateUtils.subtract(today, DateUtils.DAY,1);
 
         this.jobItemService.runDailyCalculateProcedure(today);
     }
