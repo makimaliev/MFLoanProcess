@@ -33,6 +33,11 @@ public class JobItemServiceImpl extends GenericServiceImpl<JobItem> implements J
     }
 
     @Override
+    public void runDailyCalculateProcedureForOneLoan(long loanId, Date date){
+        this.jobItemDao.runDailyCalculateProcedureForOneLoan(loanId, date);
+    }
+
+    @Override
     public void runFixedCalculateProcedure(Date date)
     {
         this.jobItemDao.runFixedCalculateProcedure(date);

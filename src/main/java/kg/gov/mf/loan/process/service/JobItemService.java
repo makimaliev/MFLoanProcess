@@ -11,4 +11,5 @@ public interface JobItemService extends GenericService<JobItem> {
     void runDailyCalculateProcedure(Date date);
     void runManualCalculateProcedure(long loanId, Date date);
     void runFixedCalculateProcedure(Date date);
+    void runDailyCalculateProcedureForOneLoan(long loanId, Date date);
 }
