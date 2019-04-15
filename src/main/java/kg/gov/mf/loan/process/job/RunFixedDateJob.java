@@ -4,11 +4,13 @@ import kg.gov.mf.loan.process.model.FixedDate;
 import kg.gov.mf.loan.process.model.JobItem;
 import kg.gov.mf.loan.process.repository.FixedDateRepository;
 import kg.gov.mf.loan.process.service.JobItemService;
+import org.apache.commons.lang3.time.DateUtils;
 import org.quartz.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.List;
 
 @Transactional
@@ -33,7 +35,8 @@ public class RunFixedDateJob implements Job {
         List<FixedDate> fixedDateList = fixedDateRepository.getFixedDateByStatusEquals(1);
         for (FixedDate date: fixedDateList)
         {
-            this.jobItemService.runFixedCalculateProcedure(date.getDate());
+            Date temp = DateUtils.addDays(date.getDate(), 1);
+            this.jobItemService.runFixedCalculateProcedure(temp);
             date.setStatus(2);
             fixedDateRepository.save(date);
         }
