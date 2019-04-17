@@ -30,7 +30,7 @@ public class JobItemDaoImpl extends GenericDaoImpl<JobItem> implements JobItemDa
         Query query = getCurrentSession().createSQLQuery("CALL runCalculateLoanDetailedSummaryForAllLoansFixed(:inDate)")
                 .setParameter("inDate",date);
 
-        System.out.println(query.uniqueResult());
+        query.executeUpdate();
     }
 
     @Override
