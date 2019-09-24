@@ -18,6 +18,8 @@ public class JobItem extends GenericModel{
     @OrderBy("onDate")
     private Set<OnDate> onDates = new HashSet<OnDate>();
 
+    private int active=0;
+
     public String getName() {
         return name;
     }
@@ -43,5 +45,13 @@ public class JobItem extends GenericModel{
 
     public void setOnDates(Set<OnDate> onDates) {
         this.onDates = onDates;
+    }
+
+    public int getActive() {
+        return active;
+    }
+
+    public void setActive(int active) {
+        this.active = active;
     }
 }

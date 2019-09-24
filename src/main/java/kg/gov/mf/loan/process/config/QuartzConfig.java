@@ -21,6 +21,7 @@ public class QuartzConfig {
         SchedulerFactoryBean quartzScheduler = new SchedulerFactoryBean();
         quartzScheduler.setOverwriteExistingJobs(true);
         quartzScheduler.setSchedulerName("job-scheduler");
+        quartzScheduler.setAutoStartup(true);
         AutowiringSpringBeanJobFactory jobFactory = new AutowiringSpringBeanJobFactory();
         jobFactory.setApplicationContext(context);
         quartzScheduler.setJobFactory(jobFactory);
