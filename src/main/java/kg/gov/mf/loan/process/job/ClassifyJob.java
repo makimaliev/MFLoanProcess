@@ -26,9 +26,7 @@ public class ClassifyJob implements Job {
 
     private void classify()
     {
-        Calendar now = Calendar.getInstance();
-        Date today = now.getTime();
-        System.out.println("Classify Job is running");
+        this.jobItemService.updateDebtorGroupAndSubGroup();
     }
 
     private JobItem getJobItemFromJobCaller(JobExecutionContext context)

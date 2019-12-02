@@ -52,4 +52,12 @@ public class JobItemDaoImpl extends GenericDaoImpl<JobItem> implements JobItemDa
 
         query.executeUpdate();
     }
+
+    @Override
+    public void updateDebtorGroupAndSubGroup()
+    {
+        Query query = getCurrentSession().createSQLQuery("CALL update_debtor_group_and_sub_group()");
+
+        query.executeUpdate();
+    }
 }

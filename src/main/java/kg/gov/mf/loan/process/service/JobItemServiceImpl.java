@@ -42,4 +42,10 @@ public class JobItemServiceImpl extends GenericServiceImpl<JobItem> implements J
     {
         this.jobItemDao.runFixedCalculateProcedure(date);
     }
+
+    @Override
+    public void updateDebtorGroupAndSubGroup()
+    {
+        this.jobItemDao.updateDebtorGroupAndSubGroup();
+    }
 }

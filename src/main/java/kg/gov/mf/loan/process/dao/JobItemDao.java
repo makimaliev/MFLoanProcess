@@ -12,4 +12,5 @@ public interface JobItemDao extends GenericDao<JobItem> {
     void runManualCalculateProcedure(long loanId, Date date);
     void runFixedCalculateProcedure(Date date);
     void runDailyCalculateProcedureForOneLoan(long loanId, Date date);
+    void updateDebtorGroupAndSubGroup();
 }
