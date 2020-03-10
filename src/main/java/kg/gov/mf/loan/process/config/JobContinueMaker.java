@@ -52,8 +52,7 @@ public class JobContinueMaker {
             }
         }
         catch (Exception e){
-            System.out.println("Couldn't initialize active jobs");
-            System.out.println(e);
+
         }
     }
 }

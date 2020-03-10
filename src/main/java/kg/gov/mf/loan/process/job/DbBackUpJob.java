@@ -55,7 +55,6 @@ public class DbBackUpJob implements Job {
 
             SimpleDateFormat df2 = new SimpleDateFormat("dd_MM_yy_HH_mm_ss");
             String dateText = df2.format(today);
-            System.out.println(dateText);
 
             String savePath = UPLOADED_FOLDER + database+"_"+dateText+".sql";
             String fileName = database+"_"+dateText;
@@ -65,9 +64,6 @@ public class DbBackUpJob implements Job {
 
             p = Runtime.getRuntime().exec(executeCmd);
             int processComplete = p.waitFor();
-            System.out.println("============================================================================================");
-            System.out.println(processComplete);
-            System.out.println("============================================================================================");
 
             if (processComplete == 0) {
                 SystemFile dbBackupFile = new SystemFile();
@@ -77,10 +73,10 @@ public class DbBackUpJob implements Job {
 
                 this.systemFileService.create(dbBackupFile);
 
-                System.out.println("Backup created successfully!");
+
 
             } else {
-                System.out.println("Backup NOT created !");
+
             }
 
 

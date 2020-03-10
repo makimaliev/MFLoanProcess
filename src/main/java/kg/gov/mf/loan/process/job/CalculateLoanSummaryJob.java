@@ -103,9 +103,7 @@ public class CalculateLoanSummaryJob implements Job {
 
         }
         catch (NullPointerException ex){
-            System.out.println("Loan id: " + loan.getId());
-            System.out.println("Class: " + ex.getClass().getSimpleName());
-            System.out.println("Message: " + ex.getMessage());
+
         }
     }
 
